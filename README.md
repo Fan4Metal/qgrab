@@ -7,7 +7,8 @@ A Chromium extension (Vivaldi, Chrome, Edge, Brave) that detects video and audio
 ## Features
 
 - Detection of media files (MP4, WebM, MKV, MOV, MP3, M4A and others) by the `Content-Type` of network responses and by `<video>`/`<audio>` elements.
-- Detection of HLS streams (`.m3u8`), with a choice of quality and an estimated file size.
+- Detection of HLS (`.m3u8`) and MPEG-DASH (`.mpd`) streams, with a choice of quality and an estimated file size.
+- Downloading of DASH streams in fragmented MP4 (SegmentTemplate with or without SegmentTimeline, SegmentList, SegmentBase with a `sidx` index); video and audio are assembled into one MP4 file.
 - Downloading of HLS streams, including AES-128 encrypted ones, with parallel segment loading, retries and the option to save without failed segments.
 - Conversion of HLS streams to MP4 without re-encoding: MPEG-TS (H.264 + AAC) and fragmented MP4 become a regular MP4 file with the index at the start, so it opens and seeks in any player. A separate audio track is merged into the same file; audio-only streams are saved as M4A.
 - The `Referer` of the source page is sent automatically, so CDNs that check it do not refuse the download.
@@ -68,7 +69,7 @@ Regular files are passed to the browser's download manager directly. An HLS stre
 ## Limitations
 
 - Conversion to MP4 covers H.264 and AAC in MPEG-TS, raw AAC segments and any codecs in fragmented MP4 (H.264, HEVC, AV1, AAC, AC-3 and others). For MPEG-TS streams with HEVC, MP3 or AC-3, and when the conversion is disabled, the stream is saved in its original container (`.ts`), and a separate audio track becomes a second file.
-- DASH streams (`.mpd`) are listed, but not downloaded; their link can be copied for yt-dlp or ffmpeg.
+- Not supported for DASH: live streams, WebM representations, and manifests with several periods (only the first period is saved).
 - DRM-protected streams (SAMPLE-AES, Widevine, FairPlay, PlayReady) are not supported.
 - For live streams, only the segments available at the moment of download are saved.
 - An HLS stream is assembled in the browser's memory before saving; very long high-bitrate videos require a corresponding amount of RAM.
@@ -92,10 +93,10 @@ The extension does not send data to any third-party server.
 manifest.json
 src/background.js        service worker: detection, item list, start of downloads
 src/content.js           <video>/<audio> sources of the page
-src/lib/                 shared modules: names, media types, HLS parser, Referer rules, settings
+src/lib/                 shared modules: names, media types, HLS and DASH parsers, Referer rules, settings
 src/lib/mp4/             HLS → MP4 remuxer: MPEG-TS and fMP4 demuxers, H.264/AAC, MP4 writer
 src/popup/               list of found items
-src/downloader/          HLS stream download page
+src/downloader/          HLS and DASH stream download page
 src/options/             settings page
 _locales/en, _locales/ru interface strings
 tools/make-icons.mjs     icon generator (no dependencies)
@@ -107,7 +108,7 @@ tests/                   unit tests
 
 Node.js 18 or later is required for the tests and tools; the extension itself needs no build step.
 
-- `npm test` runs the unit tests (names, media types, HLS parser, MP4 conversion). The conversion tests generate streams with ffmpeg and check the result with ffprobe; without ffmpeg in `PATH` they are skipped.
+- `npm test` runs the unit tests (names, media types, HLS and DASH parsers, MP4 conversion). The conversion tests generate streams with ffmpeg and check the result with ffprobe; without ffmpeg in `PATH` they are skipped.
 - `node tools/e2e.mjs <path to browser executable>` launches the browser with a temporary profile, serves a test page, downloads all detected media and verifies file names, HLS decryption, the `Referer` header and, when ffmpeg is available, the MP4 conversion including playback in the browser. With `SHOTS=1` it also saves popup screenshots.
 - `npm run icons` regenerates the icons.
 

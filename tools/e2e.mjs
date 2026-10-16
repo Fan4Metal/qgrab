@@ -48,10 +48,12 @@ if (hasFfmpeg) {
   const hls = ['-f', 'hls', '-hls_time', '4', '-hls_playlist_type', 'vod'];
   mkdirSync(join(real, 'Sintel_Trailer'), { recursive: true });
   mkdirSync(join(real, 'Lecture_TS'), { recursive: true });
+  mkdirSync(join(real, 'Tears_DASH'), { recursive: true });
   execFileSync('ffmpeg', ['-v', 'error', '-y', ...src, '-map', '0:v', '-map', '1:a', ...enc, ...hls, '-hls_segment_type', 'fmp4', '-master_pl_name', 'master.m3u8', '-var_stream_map', 'v:0,agroup:aud a:0,agroup:aud', '-hls_segment_filename', '%v/seg%d.m4s', '%v/index.m3u8'], { cwd: join(real, 'Sintel_Trailer') });
   execFileSync('ffmpeg', ['-v', 'error', '-y', ...src, ...enc, ...hls, '-hls_segment_filename', 'seg%d.ts', 'index.m3u8'], { cwd: join(real, 'Lecture_TS') });
+  execFileSync('ffmpeg', ['-v', 'error', '-y', ...src, '-map', '0:v', '-map', '1:a', ...enc, '-f', 'dash', '-seg_duration', '4', 'manifest.mpd'], { cwd: join(real, 'Tears_DASH') });
 }
-const MIME = { m3u8: 'application/vnd.apple.mpegurl', ts: 'video/mp2t', m4s: 'video/iso.segment', mp4: 'video/mp4', m4a: 'audio/mp4' };
+const MIME = { mpd: 'application/dash+xml', m3u8: 'application/vnd.apple.mpegurl', ts: 'video/mp2t', m4s: 'video/iso.segment', mp4: 'video/mp4', m4a: 'audio/mp4' };
 const big = randomBytes(700 * 1024);
 
 const routes = {
@@ -68,7 +70,7 @@ fetch('/files/My%20Trip%202024.mp4');
 fetch('/hls/Big_Buck_Bunny/master.m3u8').then(r => r.text()).then(() => fetch('/hls/Big_Buck_Bunny/720/index.m3u8'));
 fetch('/chunks/frag-1.mp4'); fetch('/chunks/frag-2.mp4'); fetch('/chunks/frag-3.mp4');
 fetch('/tiny.mp4');
-${hasFfmpeg ? "fetch('/real/Sintel_Trailer/master.m3u8'); fetch('/real/Lecture_TS/index.m3u8');" : ''}
+${hasFfmpeg ? "fetch('/real/Sintel_Trailer/master.m3u8'); fetch('/real/Lecture_TS/index.m3u8'); fetch('/real/Tears_DASH/manifest.mpd');" : ''}
 </script>`,
   ],
   '/media/d41d8cd98f00b204e9800998ecf8427e': () => [200, { 'content-type': 'video/mp4' }, big],
@@ -270,7 +272,7 @@ try {
 
   const files = readdirSync(downloads);
   console.log('downloaded files:', files);
-  const converted = hasFfmpeg ? ['Sintel_Trailer.mp4', 'Lecture_TS.mp4'] : [];
+  const converted = hasFfmpeg ? ['Sintel_Trailer.mp4', 'Lecture_TS.mp4', 'Tears_DASH.mp4'] : [];
   const expected = ['Лекция 5 - Введение.mp4', 'Тестовое видео.mp4', 'My Trip 2024.mp4', 'Big_Buck_Bunny.ts', ...converted];
   for (const name of expected) {
     const ok = files.includes(name);

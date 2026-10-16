@@ -44,9 +44,6 @@
   "noteAudio": {
     "message": "Звук идёт отдельной дорожкой и сохранится вторым файлом."
   },
-  "noteDash": {
-    "message": "DASH-потоки не поддерживаются; ссылку можно передать в yt-dlp или ffmpeg."
-  },
   "statusCopied": {
     "message": "Ссылка скопирована"
   },
@@ -226,5 +223,20 @@
   },
   "nameSource_selection": {
     "message": "Выделение"
+  },
+  "dashProblem_live": {
+    "message": "Прямые эфиры в DASH не поддерживаются."
+  },
+  "dashProblem_drm": {
+    "message": "Поток защищён DRM, скачать его нельзя."
+  },
+  "dashProblem_webm": {
+    "message": "DASH-потоки в WebM нельзя собрать в MP4."
+  },
+  "dashProblem_empty": {
+    "message": "В манифесте нет видео и звука."
+  },
+  "dashMultiPeriod": {
+    "message": "В манифесте несколько периодов (например, реклама); сохраняется только первый."
   }
 }

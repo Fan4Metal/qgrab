@@ -1,6 +1,7 @@
 import { classify, isIgnoredUrl, patternKey } from './lib/media.js';
 import { joinPath, nameFromUrl, parseContentDisposition } from './lib/filename.js';
 import { describeMedia, parsePlaylist } from './lib/hls.js';
+import { parseMpd, pickAudio, problemOf, usable } from './lib/dash.js';
 import { DEFAULTS, getSettings } from './lib/settings.js';
 import { clearTabReferer, setHostReferer } from './lib/referer.js';
 
@@ -209,6 +210,7 @@ function addItem(tabId, info) {
     item.referer = refererFor(info, page);
     changed(tabId);
     if (item.kind === 'hls') inspectHls(tabId, item);
+    if (item.kind === 'dash') inspectDash(tabId, item);
   });
 }
 
@@ -246,6 +248,32 @@ async function inspectHls(tabId, item) {
     }
   } catch (e) {
     item.hls = { error: String(e?.message || e), variants: [] };
+  }
+  changed(tabId);
+}
+
+/** Reads the manifest for qualities and duration; single-file representations are hidden from the list. */
+async function inspectDash(tabId, item) {
+  try {
+    await setHostReferer(item.url, item.referer);
+    const mpd = parseMpd(await fetchText(item.url), item.url);
+    const state = tabs.get(tabId);
+    if (!state || state.items.get(item.key) !== item) return;
+    const audio = pickAudio(mpd);
+    item.dash = {
+      variants: usable(mpd.video).map((r) => ({ id: r.id, width: r.width, height: r.height, bandwidth: r.bandwidth, codecs: r.codecs })),
+      audioId: audio?.id || '',
+      audioBandwidth: audio?.bandwidth || 0,
+      duration: mpd.duration,
+      problem: problemOf(mpd),
+    };
+    for (const rep of [...mpd.video, ...mpd.audio]) {
+      if (rep.template || rep.list) continue;
+      state.children.add(rep.base);
+      state.items.delete(rep.base);
+    }
+  } catch (e) {
+    item.dash = { error: String(e?.message || e), variants: [] };
   }
   changed(tabId);
 }
@@ -297,14 +325,18 @@ const handlers = {
 
     if (item.kind === 'hls') {
       const chosen = item.hls?.variants?.[variant];
-      const params = new URLSearchParams({ url: chosen?.url || item.url, name, referer: item.referer || '' });
+      const params = new URLSearchParams({ kind: 'hls', url: chosen?.url || item.url, name, referer: item.referer || '' });
       if (chosen?.audioUrl) params.set('audio', chosen.audioUrl);
-      const tab = await chrome.tabs.get(tabId).catch(() => null);
-      await chrome.tabs.create({
-        url: `${chrome.runtime.getURL(DOWNLOADER_PAGE)}?${params}`,
-        active: false,
-        ...(tab ? { index: tab.index + 1, openerTabId: tab.id, windowId: tab.windowId } : {}),
-      });
+      await openDownloader(tabId, params);
+      return { ok: true };
+    }
+
+    if (item.kind === 'dash') {
+      const chosen = item.dash?.variants?.[variant];
+      const params = new URLSearchParams({ kind: 'dash', url: item.url, name, referer: item.referer || '' });
+      if (chosen) params.set('video', chosen.id);
+      if (item.dash?.audioId) params.set('audio', item.dash.audioId);
+      await openDownloader(tabId, params);
       return { ok: true };
     }
 
@@ -312,11 +344,19 @@ const handlers = {
   },
 };
 
+async function openDownloader(tabId, params) {
+  const tab = await chrome.tabs.get(tabId).catch(() => null);
+  await chrome.tabs.create({
+    url: `${chrome.runtime.getURL(DOWNLOADER_PAGE)}?${params}`,
+    active: false,
+    ...(tab ? { index: tab.index + 1, openerTabId: tab.id, windowId: tab.windowId } : {}),
+  });
+}
+
 chrome.runtime.onMessage.addListener((message, sender, sendResponse) => {
   const handler = handlers[message?.type];
   if (!handler) return false;
-  if (message.type !== 'contentMedia' && sender.origin !== SELF_ORIGIN) return false;
-  Promise.resolve(handler(message, sender)).then(sendResponse, (e) => sendResponse({ error: String(e?.message || e) }));
+  if (message.type !== 'contentMedia' && sender.origin !== SELF_ORIGIN) return false;  Promise.resolve(handler(message, sender)).then(sendResponse, (e) => sendResponse({ error: String(e?.message || e) }));
   return true;
 });
 

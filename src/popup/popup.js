@@ -118,8 +118,14 @@ function variantLabel(v) {
   return [quality, formatBitrate(v.bandwidth)].filter(Boolean).join(' · ') || hostOf(v.url);
 }
 
+/** Stream details from the playlist/manifest: {variants, duration, live, error, …}. */
+function streamInfo(item) {
+  return item.hls || item.dash || {};
+}
+
 // Audio-only streams become .m4a after conversion.
 function streamExt(item) {
+  if (item.kind === 'dash') return !item.dash?.variants?.length && item.dash?.audioId ? 'm4a' : 'mp4';
   const variants = item.hls?.variants || [];
   const audioOnly = variants.length > 0 && variants.every((v) => !v.height && v.codecs && !/avc|hvc|hev|av01|vp0/i.test(v.codecs));
   return audioOnly ? 'm4a' : 'mp4';
@@ -175,7 +181,7 @@ function createCard() {
   quality.addEventListener('change', () => describe());
 
   function selectedVariant() {
-    return item.hls?.variants?.[Number(quality.value) || 0] || null;
+    return streamInfo(item).variants?.[Number(quality.value) || 0] || null;
   }
 
   function showNote(text, tone = '') {
@@ -197,21 +203,22 @@ function createCard() {
     let blocked = false;
     if (item.kind === 'file') {
       parts.push(item.size ? formatBytes(item.size) : t('sizeUnknown'));
-    } else if (item.kind === 'hls') {
-      const hls = item.hls || {};
+    } else {
+      const info = streamInfo(item);
       const variant = selectedVariant();
-      if (hls.live) parts.push(t('live'));
-      else if (hls.duration) parts.push(formatDuration(hls.duration));
-      if (variant?.bandwidth && hls.duration && !hls.live) parts.push(`~${formatBytes((variant.bandwidth * hls.duration) / 8)}`);
-      if (hls.error) warning = `${t('noteHlsError')} ${hls.error}`;
-      else if (hls.encryption === 'DRM' || hls.encryption === 'SAMPLE-AES') {
+      const bandwidth = (variant?.bandwidth || 0) + (info.audioBandwidth || 0);
+      if (info.live) parts.push(t('live'));
+      else if (info.duration) parts.push(formatDuration(info.duration));
+      if (bandwidth && info.duration && !info.live) parts.push(`~${formatBytes((bandwidth * info.duration) / 8)}`);
+      if (info.error) warning = `${t('noteHlsError')} ${info.error}`;
+      else if (info.problem) {
+        warning = t(`dashProblem_${info.problem}`);
+        blocked = true;
+      } else if (info.encryption === 'DRM' || info.encryption === 'SAMPLE-AES') {
         warning = t('noteDrm');
         blocked = true;
-      } else if (hls.live) warning = t('noteLive');
-      else if (variant?.audioUrl && !settings.convertMp4) warning = t('noteAudio');
-    } else {
-      warning = t('noteDash');
-      blocked = true;
+      } else if (info.live) warning = t('noteLive');
+      else if ((variant?.audioUrl || info.audioId) && !settings.convertMp4) warning = t('noteAudio');
     }
     parts.push(hostOf(item.url));
     meta.textContent = parts.filter(Boolean).join(' · ');
@@ -250,10 +257,10 @@ function createCard() {
 
     kind.className = `kind ${item.kind}`;
     kind.textContent = item.kind === 'file' ? (suggestion.ext || 'FILE').toUpperCase() : item.kind.toUpperCase();
-    ext.textContent = suggestion.ext ? `.${suggestion.ext}` : item.kind === 'hls' && settings.convertMp4 ? `.${streamExt(item)}` : '';
+    ext.textContent = suggestion.ext ? `.${suggestion.ext}` : item.kind !== 'file' && settings.convertMp4 ? `.${streamExt(item)}` : '';
 
-    const variants = item.hls?.variants || [];
-    const signature = variants.map((v) => v.url).join('|');
+    const variants = streamInfo(item).variants || [];
+    const signature = variants.map((v) => v.url || v.id).join('|');
     if (signature !== variantsSignature) {
       variantsSignature = signature;
       quality.replaceChildren(

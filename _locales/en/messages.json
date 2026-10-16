@@ -44,9 +44,6 @@
   "noteAudio": {
     "message": "Audio is a separate track and will be saved as a second file."
   },
-  "noteDash": {
-    "message": "DASH streams are not supported; the link can be passed to yt-dlp or ffmpeg."
-  },
   "statusCopied": {
     "message": "Link copied"
   },
@@ -226,5 +223,20 @@
   },
   "nameSource_selection": {
     "message": "Selection"
+  },
+  "dashProblem_live": {
+    "message": "Live DASH streams are not supported."
+  },
+  "dashProblem_drm": {
+    "message": "The stream is DRM-protected and cannot be downloaded."
+  },
+  "dashProblem_webm": {
+    "message": "WebM DASH streams cannot be assembled into MP4."
+  },
+  "dashProblem_empty": {
+    "message": "The manifest contains no video or audio."
+  },
+  "dashMultiPeriod": {
+    "message": "The manifest has several periods (for example, ads); only the first one is saved."
   }
 }

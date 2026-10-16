@@ -1,9 +1,10 @@
-// Downloads an HLS stream: fetches the playlist, all segments (decrypting AES-128),
-// concatenates them and hands the result to chrome.downloads under the chosen name.
+// Downloads an HLS or DASH stream: fetches the playlist, all segments (decrypting AES-128),
+// assembles them and hands the result to chrome.downloads under the chosen name.
 
 import { applyI18n, t } from '../lib/i18n.js';
 import { formatBytes, formatDuration } from '../lib/format.js';
 import { parsePlaylist } from '../lib/hls.js';
+import { parseMpd, pickAudio, problemOf, representationPlaylist, usable } from '../lib/dash.js';
 import { joinPath, makeFileName } from '../lib/filename.js';
 import { getSettings } from '../lib/settings.js';
 import { clearTabReferer, setTabReferer } from '../lib/referer.js';
@@ -70,18 +71,7 @@ async function main() {
 
   try {
     setStatus(t('dlLoading'));
-    let video = await loadPlaylist(source);
-    let audioUrl = audioSource;
-    if (video.type === 'master') {
-      const best = video.variants[0];
-      if (!best) throw new Error(t('errEmpty'));
-      audioUrl ||= best.audioUrl || '';
-      video = await loadPlaylist(best.url);
-      if (video.type !== 'media') throw new Error(t('errEmpty'));
-    }
-
-    const tracks = [{ label: t('trackVideo'), playlist: video, suffix: '', audio: false }];
-    if (audioUrl) tracks.push({ label: t('trackAudio'), url: audioUrl, suffix: ` (${t('trackAudioSuffix')})`, audio: true });
+    const tracks = params.get('kind') === 'dash' ? await dashTracks() : await hlsTracks();
 
     // Converted tracks go into one MP4; tracks left in the original container are saved separately.
     const mp4Tracks = [];
@@ -108,6 +98,40 @@ async function main() {
     if (e instanceof Cancelled || controller.signal.aborted) finish(t('dlCancelled'), '');
     else finish(`${t('dlError')}: ${e.message || e}`, 'error');
   }
+}
+
+const AUDIO_SUFFIX = () => ` (${t('trackAudioSuffix')})`;
+
+async function hlsTracks() {
+  let video = await loadPlaylist(source);
+  let audioUrl = audioSource;
+  if (video.type === 'master') {
+    const best = video.variants[0];
+    if (!best) throw new Error(t('errEmpty'));
+    audioUrl ||= best.audioUrl || '';
+    video = await loadPlaylist(best.url);
+    if (video.type !== 'media') throw new Error(t('errEmpty'));
+  }
+  const tracks = [{ label: t('trackVideo'), playlist: video, suffix: '', audio: false }];
+  if (audioUrl) tracks.push({ label: t('trackAudio'), url: audioUrl, suffix: AUDIO_SUFFIX(), audio: true });
+  return tracks;
+}
+
+async function dashTracks() {
+  const mpd = parseMpd(await fetchWithRetry(source, null, 'text'), source);
+  const problem = problemOf(mpd);
+  if (problem) throw new Error(t(`dashProblem_${problem}`));
+  if (mpd.multiPeriod) warn(t('dashMultiPeriod'));
+  const videos = usable(mpd.video);
+  const video = videos.find((r) => r.id === params.get('video')) || videos[0];
+  const audio = usable(mpd.audio).find((r) => r.id === params.get('audio')) || pickAudio(mpd);
+  const fetchRange = (url, range) => fetchWithRetry(url, range, 'buffer');
+  const tracks = [];
+  if (video) tracks.push({ label: t('trackVideo'), playlist: await representationPlaylist(video, fetchRange), suffix: '', audio: false });
+  if (audio) {
+    tracks.push({ label: t('trackAudio'), playlist: await representationPlaylist(audio, fetchRange), suffix: video ? AUDIO_SUFFIX() : '', audio: true });
+  }
+  return tracks;
 }
 
 function setStatus(text, tone = '') {
