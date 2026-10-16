@@ -2,7 +2,7 @@
   "name": "qgrab",
   "version": "1.0.0",
   "private": true,
-  "description": "Chromium extension that downloads video and HLS streams under the original file name",
+  "description": "Chromium extension that downloads video files and HLS/DASH streams under the original file name",
   "type": "module",
   "scripts": {
     "test": "node --test",
