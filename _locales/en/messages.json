@@ -238,5 +238,38 @@
   },
   "dashMultiPeriod": {
     "message": "The manifest has several periods (for example, ads); only the first one is saved."
+  },
+  "btnPick": {
+    "message": "Point at the video on the page"
+  },
+  "btnHide": {
+    "message": "Hide"
+  },
+  "pickThis": {
+    "message": "Download this video"
+  },
+  "pickBanner": {
+    "message": "Click the video to download · Esc to cancel"
+  },
+  "pickDone": {
+    "message": "Video selected: open QGrab"
+  },
+  "pickNothing": {
+    "message": "Nothing found for this video yet: start playback and try again"
+  },
+  "pickNoVideos": {
+    "message": "There are no video elements on this page."
+  },
+  "othersLabel": {
+    "message": "Other on the page"
+  },
+  "focusPlaying": {
+    "message": "On screen"
+  },
+  "focusPicked": {
+    "message": "Selected video"
+  },
+  "focusReset": {
+    "message": "Reset selection"
   }
 }

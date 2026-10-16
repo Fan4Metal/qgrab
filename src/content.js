@@ -28,6 +28,23 @@
     if (text) globalThis.__qgrabLastSelection = text;
   });
 
+  // Requests of this frame (playlists, segments, media files) with their time: they tell which
+  // detected item belongs to which <video>. Read by the popup and the picker.
+  const resources = [];
+  globalThis.__qgrabResources = resources;
+  const MEDIA_INITIATORS = new Set(['xmlhttprequest', 'fetch', 'video', 'audio', 'other']);
+  try {
+    new PerformanceObserver((list) => {
+      for (const entry of list.getEntries()) {
+        if (!MEDIA_INITIATORS.has(entry.initiatorType) || !/^https?:/i.test(entry.name)) continue;
+        resources.push({ url: entry.name, time: performance.timeOrigin + entry.startTime });
+      }
+      if (resources.length > 600) resources.splice(0, resources.length - 500);
+    }).observe({ type: 'resource', buffered: true });
+  } catch {
+    // Resource Timing is unavailable (e.g. sandboxed documents).
+  }
+
   // Media events do not bubble, but they can be captured on the document.
   for (const event of ['loadedmetadata', 'play']) document.addEventListener(event, scan, true);
   scan();

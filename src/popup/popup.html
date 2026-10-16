@@ -13,6 +13,9 @@
       <span class="title" data-i18n="extName"></span>
       <span id="count" class="count"></span>
       <span class="spacer"></span>
+      <button id="pick" class="icon-btn" data-i18n-title="btnPick">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="7" /><circle cx="12" cy="12" r="2" /><path d="M12 2v3M12 19v3M2 12h3M19 12h3" /></svg>
+      </button>
       <button id="clear" class="icon-btn" data-i18n-title="btnClear">
         <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M4 7h16M10 11v6M14 11v6M6 7l1 13h10l1-13M9 7V4h6v3" /></svg>
       </button>
@@ -21,6 +24,7 @@
       </button>
     </header>
 
+    <div id="pick-note" class="pick-note" hidden></div>
     <ul id="list" class="list"></ul>
 
     <div id="empty" class="empty" hidden>
@@ -33,6 +37,7 @@
       <li class="item">
         <div class="kind"></div>
         <div class="body">
+          <div class="focus-badge" hidden></div>
           <div class="name-row">
             <input class="name" type="text" spellcheck="false" />
             <span class="ext"></span>
@@ -42,6 +47,9 @@
           <div class="actions">
             <select class="quality" hidden></select>
             <span class="meta muted"></span>
+            <button class="hide icon-btn" data-i18n-title="btnHide">
+              <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><path d="M6 6l12 12M18 6L6 18" /></svg>
+            </button>
             <button class="copy icon-btn" data-i18n-title="btnCopy">
               <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="9" y="9" width="12" height="12" rx="2" /><path d="M5 15H4a1 1 0 0 1-1-1V4a1 1 0 0 1 1-1h10a1 1 0 0 1 1 1v1" /></svg>
             </button>

@@ -2,12 +2,17 @@ import { applyI18n, t } from '../lib/i18n.js';
 import { formatBitrate, formatBytes, formatDuration } from '../lib/format.js';
 import { cleanSelection, makeFileName, nameCandidates, sanitizeName, suggestName } from '../lib/filename.js';
 import { getSettings } from '../lib/settings.js';
+import { mainVideo, matchItems } from '../lib/focus.js';
 
 const list = document.getElementById('list');
 const empty = document.getElementById('empty');
 const count = document.getElementById('count');
 const template = document.getElementById('item-template');
+const pickNote = document.getElementById('pick-note');
 const cards = new Map();
+const others = document.createElement('li');
+others.className = 'others';
+let showOthers = false;
 let refreshing = null;
 let refreshAgain = false;
 
@@ -15,20 +20,22 @@ applyI18n();
 
 const [tab] = await chrome.tabs.query({ active: true, currentWindow: true });
 const settings = await getSettings();
-const selection = await readSelection();
+const page = await readPage();
+const selection = page.selection;
 
 document.getElementById('settings').addEventListener('click', () => chrome.runtime.openOptionsPage());
 document.getElementById('clear').addEventListener('click', async () => {
   if (tab) await send({ type: 'clearItems', tabId: tab.id });
   refresh();
 });
+document.getElementById('pick').addEventListener('click', startPicker);
 chrome.runtime.onMessage.addListener((message) => {
   if (message?.type === 'itemsChanged' && message.tabId === tab?.id) refresh();
 });
 refresh();
 
 // Runs in every frame of the page, in the content script's isolated world.
-function grabSelection() {
+function grabFrame() {
   const el = document.activeElement;
   let current = '';
   if (el && (el.tagName === 'TEXTAREA' || el.tagName === 'INPUT') && el.selectionEnd > el.selectionStart) {
@@ -39,25 +46,72 @@ function grabSelection() {
     }
   }
   current ||= String(getSelection() || '');
-  return { current: current.trim(), last: globalThis.__qgrabLastSelection || '', top: window === top };
+
+  const vw = innerWidth;
+  const vh = innerHeight;
+  const videos = [...document.querySelectorAll('video')].map((v) => {
+    const r = v.getBoundingClientRect();
+    const w = Math.max(0, Math.min(r.right, vw) - Math.max(r.left, 0));
+    const h = Math.max(0, Math.min(r.bottom, vh) - Math.max(r.top, 0));
+    return {
+      area: w * h,
+      playing: !v.paused && !v.ended && v.readyState > 2,
+      currentTime: v.currentTime,
+      src: /^https?:/i.test(v.currentSrc) ? v.currentSrc : '',
+    };
+  });
+  const resources = videos.length
+    ? globalThis.__qgrabResources ||
+      performance.getEntriesByType('resource').map((e) => ({ url: e.name, time: performance.timeOrigin + e.startTime }))
+    : [];
+  return { current: current.trim(), last: globalThis.__qgrabLastSelection || '', top: window === top, videos, resources };
 }
 
 /**
- * Text selected on the page: `current` is applied as the name, `last` (selection made earlier
- * and cleared since) is only offered as a variant.
+ * Snapshot of the page when the popup opens.
+ * selection.current is applied as the name, selection.last (cleared since) is only offered as a variant;
+ * frames carry the <video> elements and the requests made by each frame.
  */
-async function readSelection() {
-  if (!tab) return { current: '', last: '' };
+async function readPage() {
+  const nothing = { selection: { current: '', last: '' }, frames: [] };
+  if (!tab) return nothing;
   try {
-    const frames = await chrome.scripting.executeScript({ target: { tabId: tab.id, allFrames: true }, func: grabSelection });
-    const results = frames.map((f) => f.result).filter(Boolean).sort((a, b) => b.top - a.top);
+    const results = await chrome.scripting.executeScript({ target: { tabId: tab.id, allFrames: true }, func: grabFrame });
+    const frames = results.map((f) => f.result).filter(Boolean).sort((a, b) => b.top - a.top);
     return {
-      current: cleanSelection(results.find((r) => r.current)?.current),
-      last: cleanSelection(results.find((r) => r.last)?.last),
+      selection: {
+        current: cleanSelection(frames.find((r) => r.current)?.current),
+        last: cleanSelection(frames.find((r) => r.last)?.last),
+      },
+      frames,
     };
   } catch {
-    return { current: '', last: '' }; // Browser pages, the Web Store and other pages scripts cannot access.
+    return nothing; // Browser pages, the Web Store and other pages scripts cannot access.
   }
+}
+
+async function startPicker() {
+  if (!page.frames.some((f) => f.videos.length)) {
+    pickNote.textContent = t('pickNoVideos');
+    pickNote.hidden = false;
+    return;
+  }
+  await chrome.scripting.executeScript({ target: { tabId: tab.id, allFrames: true }, files: ['src/picker.js'] }).catch(() => {});
+  window.close();
+}
+
+/**
+ * Items of the video being watched: picked on the page, or found automatically from the requests
+ * of the main video's frame. @returns {{keys: string[], picked: boolean}}
+ */
+function focusOf(items, picked) {
+  const known = new Set(items.map((i) => i.key));
+  const pickedKeys = (picked?.keys || []).filter((k) => known.has(k));
+  if (pickedKeys.length) return { keys: pickedKeys, picked: true };
+  const main = mainVideo(page.frames);
+  if (!main) return { keys: [], picked: false };
+  const matches = matchItems(items, main.frame.resources, main.video.src);
+  return { keys: [...matches].sort((a, b) => b[1] - a[1]).map(([key]) => key), picked: false };
 }
 
 async function send(message) {
@@ -74,7 +128,10 @@ async function refresh() {
   refreshing = (async () => {
     do {
       refreshAgain = false;
-      render(tab ? await send({ type: 'getItems', tabId: tab.id }) : []);
+      const [items, picked] = tab
+        ? await Promise.all([send({ type: 'getItems', tabId: tab.id }), send({ type: 'getFocus', tabId: tab.id })])
+        : [[], null];
+      render(items, picked);
     } while (refreshAgain);
   })();
   try {
@@ -84,7 +141,7 @@ async function refresh() {
   }
 }
 
-function render(items) {
+function render(items, picked) {
   const keys = new Set(items.map((item) => item.key));
   for (const [key, card] of cards) {
     if (!keys.has(key)) {
@@ -92,17 +149,56 @@ function render(items) {
       cards.delete(key);
     }
   }
-  items.forEach((item, index) => {
+
+  // The watched video's items first; the rest folds under "Other on the page".
+  const focus = focusOf(items, picked);
+  const rank = new Map(focus.keys.map((key, i) => [key, i]));
+  const focused = focus.keys.map((key) => items.find((i) => i.key === key));
+  const rest = items.filter((i) => !rank.has(i.key));
+  const folded = focused.length > 0 && rest.length > 0;
+  const nodes = [];
+  for (const item of [...focused, ...rest]) {
     let card = cards.get(item.key);
     if (!card) {
       card = createCard();
       cards.set(item.key, card);
     }
-    card.update(item);
-    if (list.children[index] !== card.el) list.insertBefore(card.el, list.children[index] || null);
+    card.update(item, rank.has(item.key) ? (focus.picked ? 'picked' : 'playing') : '');
+    card.el.hidden = folded && !rank.has(item.key) && !showOthers;
+    if (folded && item === rest[0]) nodes.push(others);
+    nodes.push(card.el);
+  }
+  if (folded) renderOthers(rest.length, focus.picked);
+  else others.remove();
+  nodes.forEach((node, index) => {
+    if (list.children[index] !== node) list.insertBefore(node, list.children[index] || null);
   });
   empty.hidden = items.length > 0;
   count.textContent = items.length || '';
+}
+
+function renderOthers(n, picked) {
+  const toggle = document.createElement('button');
+  toggle.type = 'button';
+  toggle.className = 'others-toggle';
+  toggle.textContent = `${showOthers ? '▾' : '▸'} ${t('othersLabel')} (${n})`;
+  toggle.addEventListener('click', () => {
+    showOthers = !showOthers;
+    refresh();
+  });
+  const parts = [toggle];
+  if (picked) {
+    const reset = document.createElement('button');
+    reset.type = 'button';
+    reset.className = 'others-reset';
+    reset.textContent = t('focusReset');
+    reset.addEventListener('click', async () => {
+      await send({ type: 'clearFocus', tabId: tab.id });
+      refresh();
+    });
+    parts.push(reset);
+  }
+  others.replaceChildren(...parts);
 }
 
 function hostOf(url) {
@@ -135,6 +231,8 @@ function createCard() {
   const el = template.content.firstElementChild.cloneNode(true);
   applyI18n(el);
   const kind = el.querySelector('.kind');
+  const badge = el.querySelector('.focus-badge');
+  const hide = el.querySelector('.hide');
   const name = el.querySelector('.name');
   const names = el.querySelector('.names');
   const ext = el.querySelector('.ext');
@@ -227,8 +325,12 @@ function createCard() {
     download.disabled = blocked;
   }
 
-  function update(next) {
+  function update(next, focus = '') {
     item = next;
+    el.dataset.key = item.key;
+    el.classList.toggle('focused', Boolean(focus));
+    badge.hidden = !focus;
+    badge.textContent = focus === 'picked' ? `◎ ${t('focusPicked')}` : `▶ ${t('focusPlaying')}`;
     const pageTitle = item.pageUrl && item.pageUrl === tab?.url ? tab.title : item.pageTitle;
     suggestion = suggestName(item, settings.naming, pageTitle);
     if (!nameEdited) name.value = selection.current || suggestion.base;
@@ -275,6 +377,8 @@ function createCard() {
     quality.hidden = variants.length < 2;
     describe();
   }
+
+  hide.addEventListener('click', () => send({ type: 'hideItem', tabId: tab.id, key: item.key }));
 
   copy.addEventListener('click', async () => {
     await navigator.clipboard.writeText(selectedVariant()?.url || item.url);

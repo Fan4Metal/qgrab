@@ -37,8 +37,16 @@ export const MIME_EXT = {
 
 const GENERIC_MIME = /^(application\/(octet-stream|force-download|x-download|download|binary)|binary\/octet-stream)?$/;
 
-// Hosts whose media requests are split audio/video chunks that cannot be saved as files.
-const IGNORED_HOSTS = /(^|\.)googlevideo\.com$/i;
+// Hosts whose media requests are split audio/video chunks that cannot be saved as files,
+// and video ad servers (pre-rolls, VAST creatives).
+const IGNORED_HOSTS = new RegExp(
+  '(^|\\.)(googlevideo\\.com|doubleclick\\.net|2mdn\\.net|googlesyndication\\.com|googleadservices\\.com|' +
+    'imasdk\\.googleapis\\.com|adnxs\\.com|adsrvr\\.org|amazon-adsystem\\.com|moatads\\.com|springserve\\.com|' +
+    'spotxchange\\.com|spotx\\.tv|innovid\\.com|tremorhub\\.com|teads\\.tv|adfox\\.ru|adriver\\.ru|' +
+    'betweendigital\\.com|ad\\.mail\\.ru|an\\.yandex\\.ru|serving-sys\\.com|smartadserver\\.com|pubmatic\\.com|' +
+    'rubiconproject\\.com|criteo\\.com|outbrain\\.com|taboola\\.com)$',
+  'i',
+);
 
 export function extOf(name) {
   const m = /\.([a-z0-9]{1,5})$/i.exec(String(name || ''));

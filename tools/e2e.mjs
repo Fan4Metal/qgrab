@@ -52,6 +52,7 @@ if (hasFfmpeg) {
   execFileSync('ffmpeg', ['-v', 'error', '-y', ...src, '-map', '0:v', '-map', '1:a', ...enc, ...hls, '-hls_segment_type', 'fmp4', '-master_pl_name', 'master.m3u8', '-var_stream_map', 'v:0,agroup:aud a:0,agroup:aud', '-hls_segment_filename', '%v/seg%d.m4s', '%v/index.m3u8'], { cwd: join(real, 'Sintel_Trailer') });
   execFileSync('ffmpeg', ['-v', 'error', '-y', ...src, ...enc, ...hls, '-hls_segment_filename', 'seg%d.ts', 'index.m3u8'], { cwd: join(real, 'Lecture_TS') });
   execFileSync('ffmpeg', ['-v', 'error', '-y', ...src, '-map', '0:v', '-map', '1:a', ...enc, '-f', 'dash', '-seg_duration', '4', 'manifest.mpd'], { cwd: join(real, 'Tears_DASH') });
+  execFileSync('ffmpeg', ['-v', 'error', '-y', ...src, ...enc, '-movflags', '+faststart', 'player.mp4'], { cwd: real });
 }
 const MIME = { mpd: 'application/dash+xml', m3u8: 'application/vnd.apple.mpegurl', ts: 'video/mp2t', m4s: 'video/iso.segment', mp4: 'video/mp4', m4a: 'audio/mp4' };
 const big = randomBytes(700 * 1024);
@@ -70,8 +71,16 @@ fetch('/files/My%20Trip%202024.mp4');
 fetch('/hls/Big_Buck_Bunny/master.m3u8').then(r => r.text()).then(() => fetch('/hls/Big_Buck_Bunny/720/index.m3u8'));
 fetch('/chunks/frag-1.mp4'); fetch('/chunks/frag-2.mp4'); fetch('/chunks/frag-3.mp4');
 fetch('/tiny.mp4');
-${hasFfmpeg ? "fetch('/real/Sintel_Trailer/master.m3u8'); fetch('/real/Lecture_TS/index.m3u8'); fetch('/real/Tears_DASH/manifest.mpd');" : ''}
-</script>`,
+${hasFfmpeg ? "fetch('/real/Lecture_TS/index.m3u8'); fetch('/real/Tears_DASH/manifest.mpd');" : ''}
+</script>
+${hasFfmpeg ? '<iframe src="/player.html" style="position:absolute;left:0;top:300px;width:640px;height:360px;border:0"></iframe>' : ''}`,
+  ],
+  '/player.html': () => [
+    200,
+    { 'content-type': 'text/html; charset=utf-8' },
+    `<!doctype html><body style="margin:0">
+<video src="/real/player.mp4" muted autoplay loop playsinline style="display:block;width:640px;height:360px"></video>
+<script>fetch('/real/Sintel_Trailer/master.m3u8').then((r) => r.text()).then(() => fetch('/real/Sintel_Trailer/0/index.m3u8'));</script>`,
   ],
   '/media/d41d8cd98f00b204e9800998ecf8427e': () => [200, { 'content-type': 'video/mp4' }, big],
   '/dl/get': () => [
@@ -259,6 +268,58 @@ try {
       writeFileSync(join(work, `popup-${scheme}.png`), Buffer.from(shot.result.data, 'base64'));
     }
     page.close();
+  }
+
+  // The watched video: found automatically, then picked with the mouse.
+  if (hasFfmpeg) {
+    const sintel = `http://localhost:${PORT}/real/Sintel_Trailer/master.m3u8`;
+    const isPlayer = (key) => key === sintel || key.endsWith('/real/player.mp4');
+    const pageTab = await evaluate(client, `chrome.tabs.query({ url: 'http://localhost:${PORT}/*' }).then(([t]) => ({ id: t.id, url: t.url, title: t.title }))`);
+    const pageTarget = (await targets()).find((tg) => tg.url.includes('/page.html'));
+    await browserWs.send('Target.activateTarget', { targetId: pageTarget.id });
+    await sleep(3000); // media does not load in background tabs
+
+    const { targetId } = (await browserWs.send('Target.createTarget', { url: 'about:blank' })).result;
+    await sleep(500);
+    const popup = connect((await targets()).find((tg) => tg.id === targetId).webSocketDebuggerUrl);
+    await popup.ready;
+    await popup.send('Page.enable');
+    await popup.send('Emulation.setDeviceMetricsOverride', { width: 440, height: 520, deviceScaleFactor: 1, mobile: false });
+    await popup.send('Page.addScriptToEvaluateOnNewDocument', { source: `chrome.tabs.query = async () => [${JSON.stringify(pageTab)}];` });
+    await popup.send('Page.navigate', { url: `chrome-extension://${extId}/src/popup/popup.html` });
+    await sleep(1500);
+    const auto = await evaluate(
+      popup,
+      "({ focused: [...document.querySelectorAll('.item.focused')].map((e) => e.dataset.key), badge: document.querySelector('.item.focused .focus-badge')?.textContent, folded: [...document.querySelectorAll('.item')].filter((e) => e.hidden).length })",
+    );
+    const autoOk = auto.focused.includes(sintel) && auto.focused.every(isPlayer) && auto.folded > 0;
+    if (!autoOk) exitCode = 1;
+    console.log(autoOk ? 'OK  ' : 'FAIL', 'video on screen detected automatically', JSON.stringify(auto));
+    const shoot = async (target, name) => {
+      if (!process.env.SHOTS) return;
+      const shot = await target.send('Page.captureScreenshot', { format: 'png' });
+      writeFileSync(join(work, name), Buffer.from(shot.result.data, 'base64'));
+    };
+    await shoot(popup, 'popup-focus.png');
+
+    await evaluate(popup, `chrome.scripting.executeScript({ target: { tabId: ${pageTab.id}, allFrames: true }, files: ['src/picker.js'] }).then(() => true)`);
+    popup.close();
+    await browserWs.send('Target.activateTarget', { targetId: pageTarget.id });
+    await sleep(800);
+    const pageClient = connect(pageTarget.webSocketDebuggerUrl);
+    await pageClient.ready;
+    const overlays = await evaluate(pageClient, "document.querySelectorAll('qgrab-picker').length");
+    await shoot(pageClient, 'picker.png');
+    for (const type of ['mousePressed', 'mouseReleased']) {
+      await pageClient.send('Input.dispatchMouseEvent', { type, x: 320, y: 480, button: 'left', clickCount: 1 });
+    }
+    await sleep(1500);
+    const leftovers = await evaluate(pageClient, "document.querySelectorAll('qgrab-picker').length");
+    pageClient.close();
+    const picked = await evaluate(client, `chrome.runtime.sendMessage({ type: 'getFocus', tabId: ${pageTab.id} })`);
+    const pickOk = overlays === 1 && leftovers === 0 && picked?.keys?.includes(sintel) && picked.keys.every(isPlayer);
+    if (!pickOk) exitCode = 1;
+    console.log(pickOk ? 'OK  ' : 'FAIL', 'video picked with the mouse', JSON.stringify({ overlays, leftovers, picked }));
   }
 
   for (const i of items) {

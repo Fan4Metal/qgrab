@@ -1,7 +1,8 @@
 import { classify, isIgnoredUrl, patternKey } from './lib/media.js';
 import { joinPath, nameFromUrl, parseContentDisposition } from './lib/filename.js';
 import { describeMedia, parsePlaylist } from './lib/hls.js';
-import { parseMpd, pickAudio, problemOf, usable } from './lib/dash.js';
+import { fillTemplate, parseMpd, pickAudio, problemOf, usable } from './lib/dash.js';
+import { matchItems, uniqueDirs } from './lib/focus.js';
 import { DEFAULTS, getSettings } from './lib/settings.js';
 import { clearTabReferer, setHostReferer } from './lib/referer.js';
 
@@ -11,7 +12,10 @@ const FRAGMENT_MAX_SIZE = 20 * 1024 * 1024;
 const DOWNLOADER_PAGE = 'src/downloader/downloader.html';
 const SELF_ORIGIN = new URL(chrome.runtime.getURL('')).origin;
 
-/** tabId → {items: Map<key, item>, children: Set<url>, patterns: {[key]: count}} */
+/**
+ * tabId → {items: Map<key, item>, children: Set<url> (ignored URLs: sub-playlists, hidden items),
+ *          patterns: {[key]: count}, focus: {keys: string[], at: number} | null (video picked on the page)}
+ */
 const tabs = new Map();
 let settings = { ...DEFAULTS };
 
@@ -34,13 +38,14 @@ function reviveTab(value) {
     items: new Map((value.items || []).map((item) => [item.key, item])),
     children: new Set(value.children || []),
     patterns: value.patterns || {},
+    focus: value.focus || null,
   };
 }
 
 function getTab(tabId) {
   let state = tabs.get(tabId);
   if (!state) {
-    state = { items: new Map(), children: new Set(), patterns: {} };
+    state = { items: new Map(), children: new Set(), patterns: {}, focus: null };
     tabs.set(tabId, state);
   }
   return state;
@@ -67,6 +72,7 @@ function changed(tabId) {
           items: [...state.items.values()],
           children: [...state.children],
           patterns: state.patterns,
+          focus: state.focus,
         },
       });
     }, 300),
@@ -229,7 +235,8 @@ async function inspectHls(tabId, item) {
     if (!state || state.items.get(item.key) !== item) return;
 
     if (playlist.type === 'master') {
-      item.hls = { master: true, variants: playlist.variants };
+      // related/prefixes link the item to the player's requests (see lib/focus.js).
+      item.hls = { master: true, variants: playlist.variants, related: playlist.uris, prefixes: [] };
       for (const url of playlist.uris) {
         state.children.add(url);
         state.items.delete(url);
@@ -238,13 +245,14 @@ async function inspectHls(tabId, item) {
       if (best) {
         try {
           await setHostReferer(best.url, item.referer);
-          Object.assign(item.hls, describeMedia(parsePlaylist(await fetchText(best.url), best.url)));
+          const media = parsePlaylist(await fetchText(best.url), best.url);
+          Object.assign(item.hls, describeMedia(media), { prefixes: uniqueDirs(media.segments.map((s) => s.url)) });
         } catch {
           // Duration is optional.
         }
       }
     } else {
-      item.hls = { master: false, variants: [], ...describeMedia(playlist) };
+      item.hls = { master: false, variants: [], ...describeMedia(playlist), related: [], prefixes: uniqueDirs(playlist.segments.map((s) => s.url)) };
     }
   } catch (e) {
     item.hls = { error: String(e?.message || e), variants: [] };
@@ -266,12 +274,25 @@ async function inspectDash(tabId, item) {
       audioBandwidth: audio?.bandwidth || 0,
       duration: mpd.duration,
       problem: problemOf(mpd),
+      related: [],
+      prefixes: [],
     };
+    const segmentUrls = [];
     for (const rep of [...mpd.video, ...mpd.audio]) {
-      if (rep.template || rep.list) continue;
-      state.children.add(rep.base);
-      state.items.delete(rep.base);
+      const media = rep.template?.attrs.media;
+      if (media) {
+        segmentUrls.push(new URL(fillTemplate(media, { RepresentationID: rep.id, Bandwidth: rep.bandwidth, Number: 1, Time: 0 }), rep.base).href);
+      } else if (rep.list) {
+        const first = rep.list.element.children.find((c) => c.name.endsWith('SegmentURL'));
+        segmentUrls.push(new URL(first?.attrs.media || '', rep.base).href);
+      } else {
+        // Single-file representation: the player requests it with ranges; it is not a separate item.
+        item.dash.related.push(rep.base);
+        state.children.add(rep.base);
+        state.items.delete(rep.base);
+      }
     }
+    item.dash.prefixes = uniqueDirs(segmentUrls);
   } catch (e) {
     item.dash = { error: String(e?.message || e), variants: [] };
   }
@@ -284,6 +305,54 @@ const handlers = {
   async getItems({ tabId }) {
     await ready;
     return [...(tabs.get(tabId)?.items.values() || [])].sort((a, b) => b.firstSeen - a.firstSeen);
+  },
+
+  async getFocus({ tabId }) {
+    await ready;
+    return tabs.get(tabId)?.focus || null;
+  },
+
+  async clearFocus({ tabId }) {
+    await ready;
+    const state = tabs.get(tabId);
+    if (state?.focus) {
+      state.focus = null;
+      changed(tabId);
+    }
+    return { ok: true };
+  },
+
+  async hideItem({ tabId, key }) {
+    await ready;
+    const state = tabs.get(tabId);
+    if (state?.items.delete(key)) {
+      state.children.add(key);
+      changed(tabId);
+    }
+    return { ok: true };
+  },
+
+  // A video chosen with the page picker (src/picker.js): its frame's requests select the items.
+  async picked({ resources, src }, sender) {
+    const tabId = sender.tab?.id;
+    if (tabId == null || tabId < 0) return { count: 0 };
+    await ready;
+    const state = getTab(tabId);
+    const matches = matchItems([...state.items.values()], resources || [], src || '');
+    const keys = [...matches].sort((a, b) => b[1] - a[1]).map(([key]) => key);
+    state.focus = keys.length ? { keys, at: Date.now() } : null;
+    changed(tabId);
+    chrome.scripting.executeScript({ target: { tabId, allFrames: true }, func: () => globalThis.__qgrabStopPicker?.() }).catch(() => {});
+    if (keys.length) chrome.action.openPopup?.().catch(() => {});
+    return { count: keys.length };
+  },
+
+  async stopPicker(_message, sender) {
+    const tabId = sender.tab?.id;
+    if (tabId != null) {
+      await chrome.scripting.executeScript({ target: { tabId, allFrames: true }, func: () => globalThis.__qgrabStopPicker?.() }).catch(() => {});
+    }
+    return { ok: true };
   },
 
   async clearItems({ tabId }) {
@@ -356,7 +425,7 @@ async function openDownloader(tabId, params) {
 chrome.runtime.onMessage.addListener((message, sender, sendResponse) => {
   const handler = handlers[message?.type];
   if (!handler) return false;
-  if (message.type !== 'contentMedia' && sender.origin !== SELF_ORIGIN) return false;  Promise.resolve(handler(message, sender)).then(sendResponse, (e) => sendResponse({ error: String(e?.message || e) }));
+  if (!['contentMedia', 'picked', 'stopPicker'].includes(message.type) && sender.origin !== SELF_ORIGIN) return false;  Promise.resolve(handler(message, sender)).then(sendResponse, (e) => sendResponse({ error: String(e?.message || e) }));
   return true;
 });
 

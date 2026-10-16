@@ -238,5 +238,38 @@
   },
   "dashMultiPeriod": {
     "message": "В манифесте несколько периодов (например, реклама); сохраняется только первый."
+  },
+  "btnPick": {
+    "message": "Указать видео на странице"
+  },
+  "btnHide": {
+    "message": "Скрыть"
+  },
+  "pickThis": {
+    "message": "Скачать это видео"
+  },
+  "pickBanner": {
+    "message": "Щёлкните по нужному видео · Esc — отмена"
+  },
+  "pickDone": {
+    "message": "Видео выбрано — откройте QGrab"
+  },
+  "pickNothing": {
+    "message": "Для этого видео пока ничего не найдено — запустите воспроизведение и повторите"
+  },
+  "pickNoVideos": {
+    "message": "На этой странице нет видеоэлементов."
+  },
+  "othersLabel": {
+    "message": "Другие на странице"
+  },
+  "focusPlaying": {
+    "message": "На экране"
+  },
+  "focusPicked": {
+    "message": "Выбранное видео"
+  },
+  "focusReset": {
+    "message": "Сбросить выбор"
   }
 }
