@@ -223,5 +223,8 @@
   },
   "nameCycleHint": {
     "message": "↑/↓ — переключение вариантов имени"
+  },
+  "nameSource_selection": {
+    "message": "Выделение"
   }
 }

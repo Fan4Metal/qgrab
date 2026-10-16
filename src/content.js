@@ -21,6 +21,13 @@
     }
   }
 
+  // The last non-empty selection: clicking the player to start playback clears the current one.
+  // The popup reads it through chrome.scripting, which runs in this same isolated world.
+  document.addEventListener('selectionchange', () => {
+    const text = String(getSelection() || '').trim();
+    if (text) globalThis.__qgrabLastSelection = text;
+  });
+
   // Media events do not bubble, but they can be captured on the document.
   for (const event of ['loadedmetadata', 'play']) document.addEventListener(event, scan, true);
   scan();

@@ -4,6 +4,7 @@ import {
   dirNameFromUrl,
   isGenericName,
   joinPath,
+  cleanSelection,
   makeFileName,
   nameCandidates,
   nameFromUrl,
@@ -101,4 +102,16 @@ test('name variants for quick switching', () => {
     { source: 'link', base: 'master' },
     { source: 'folder', base: 'Big_Buck_Bunny' },
   ]);
+});
+
+test('selected text as a file name', () => {
+  assert.equal(cleanSelection('  «Выпуск №7:\n   Итоги года»  \n'), 'Выпуск №7 - Итоги года');
+  assert.equal(cleanSelection('"Quoted title"'), 'Quoted title');
+  assert.equal(cleanSelection('a/b\tc?'), 'a-b c');
+  assert.equal(cleanSelection(''), '');
+  const long = cleanSelection('слово '.repeat(60));
+  assert.ok(Array.from(long).length <= 120 && long.endsWith('слово'), long);
+
+  const item = { kind: 'file', url: 'https://x.example/clip.mp4', headerName: '' };
+  assert.deepEqual(nameCandidates(item, 'Page', 'Выпуск 7')[0], { source: 'selection', base: 'Выпуск 7' });
 });

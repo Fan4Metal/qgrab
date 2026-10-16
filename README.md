@@ -12,7 +12,8 @@ A Chromium extension (Vivaldi, Chrome, Edge, Brave) that detects video and audio
 - Conversion of HLS streams to MP4 without re-encoding: MPEG-TS (H.264 + AAC) and fragmented MP4 become a regular MP4 file with the index at the start, so it opens and seeks in any player. A separate audio track is merged into the same file; audio-only streams are saved as M4A.
 - The `Referer` of the source page is sent automatically, so CDNs that check it do not refuse the download.
 - Hiding of irrelevant requests: stream segments, MSE chunks, small files (previews, interface sounds), YouTube chunks.
-- The file name can be edited in the popup before downloading. Buttons under the name field switch between the available variants (server, link, folder, page title, title + name); the ↑/↓ keys in the field cycle through them.
+- The file name can be edited in the popup before downloading. Buttons under the name field switch between the available variants (selection, server, link, folder, page title, title + name); the ↑/↓ keys in the field cycle through them.
+- Text selected on the page with the mouse becomes the file name when the popup is opened: line breaks, extra spaces and wrapping quotes are removed, characters not allowed in file names are replaced. If the selection was cleared in the meantime (for example, by clicking the player), the last selected text remains available as a variant.
 - English and Russian interface; light and dark themes.
 
 ## How the file name is determined
@@ -80,6 +81,7 @@ Regular files are passed to the browser's download manager directly. An HLS stre
 | `webRequest`, access to all sites | Reading response headers (type, size, file name) of media requests |
 | `downloads` | Saving files under the chosen name |
 | `declarativeNetRequestWithHostAccess` | Sending the page's `Referer` with the extension's own requests |
+| `scripting` | Reading the text selected on the page when the popup is opened |
 | `storage` | Settings and the list of found items, which survives restarts of the service worker |
 
 The extension does not send data to any third-party server.

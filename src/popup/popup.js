@@ -1,6 +1,6 @@
 import { applyI18n, t } from '../lib/i18n.js';
 import { formatBitrate, formatBytes, formatDuration } from '../lib/format.js';
-import { makeFileName, nameCandidates, sanitizeName, suggestName } from '../lib/filename.js';
+import { cleanSelection, makeFileName, nameCandidates, sanitizeName, suggestName } from '../lib/filename.js';
 import { getSettings } from '../lib/settings.js';
 
 const list = document.getElementById('list');
@@ -15,6 +15,7 @@ applyI18n();
 
 const [tab] = await chrome.tabs.query({ active: true, currentWindow: true });
 const settings = await getSettings();
+const selection = await readSelection();
 
 document.getElementById('settings').addEventListener('click', () => chrome.runtime.openOptionsPage());
 document.getElementById('clear').addEventListener('click', async () => {
@@ -25,6 +26,39 @@ chrome.runtime.onMessage.addListener((message) => {
   if (message?.type === 'itemsChanged' && message.tabId === tab?.id) refresh();
 });
 refresh();
+
+// Runs in every frame of the page, in the content script's isolated world.
+function grabSelection() {
+  const el = document.activeElement;
+  let current = '';
+  if (el && (el.tagName === 'TEXTAREA' || el.tagName === 'INPUT') && el.selectionEnd > el.selectionStart) {
+    try {
+      current = el.value.slice(el.selectionStart, el.selectionEnd);
+    } catch {
+      // Inputs without text selection support (number, email).
+    }
+  }
+  current ||= String(getSelection() || '');
+  return { current: current.trim(), last: globalThis.__qgrabLastSelection || '', top: window === top };
+}
+
+/**
+ * Text selected on the page: `current` is applied as the name, `last` (selection made earlier
+ * and cleared since) is only offered as a variant.
+ */
+async function readSelection() {
+  if (!tab) return { current: '', last: '' };
+  try {
+    const frames = await chrome.scripting.executeScript({ target: { tabId: tab.id, allFrames: true }, func: grabSelection });
+    const results = frames.map((f) => f.result).filter(Boolean).sort((a, b) => b.top - a.top);
+    return {
+      current: cleanSelection(results.find((r) => r.current)?.current),
+      last: cleanSelection(results.find((r) => r.last)?.last),
+    };
+  } catch {
+    return { current: '', last: '' }; // Browser pages, the Web Store and other pages scripts cannot access.
+  }
+}
 
 async function send(message) {
   const response = await chrome.runtime.sendMessage(message);
@@ -190,8 +224,8 @@ function createCard() {
     item = next;
     const pageTitle = item.pageUrl && item.pageUrl === tab?.url ? tab.title : item.pageTitle;
     suggestion = suggestName(item, settings.naming, pageTitle);
-    if (!nameEdited) name.value = suggestion.base;
-    candidates = nameCandidates(item, pageTitle);
+    if (!nameEdited) name.value = selection.current || suggestion.base;
+    candidates = nameCandidates(item, pageTitle, selection.current || selection.last);
     const namesSignature = candidates.map((c) => `${c.source}:${c.base}`).join('|');
     if (namesSignature !== candidatesSignature) {
       candidatesSignature = namesSignature;

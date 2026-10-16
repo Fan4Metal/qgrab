@@ -169,17 +169,35 @@ export function splitName(name) {
   return { base: s, ext: '' };
 }
 
+const QUOTES = '"\'«»“”„‘’‚`';
+const EDGE_QUOTES = new RegExp(`^[${QUOTES}\\s]+|[${QUOTES}\\s]+$`, 'g');
+
+/** Text selected on the page, made usable as a file name: one line, no wrapping quotes, cut at a word. */
+export function cleanSelection(text, max = 120) {
+  let s = String(text || '')
+    .replace(/\s+/g, ' ')
+    .replace(EDGE_QUOTES, '');
+  const chars = Array.from(s);
+  if (chars.length > max) {
+    s = chars.slice(0, max).join('');
+    const space = s.lastIndexOf(' ');
+    if (space > max / 2) s = s.slice(0, space);
+  }
+  return sanitizeName(s.replace(EDGE_QUOTES, ''));
+}
+
 /**
  * Distinct name variants offered for quick switching in the popup.
- * @returns {{source: 'server'|'link'|'folder'|'title'|'titleOriginal', base: string}[]}
+ * @returns {{source: 'selection'|'server'|'link'|'folder'|'title'|'titleOriginal', base: string}[]}
  */
-export function nameCandidates(item, pageTitle = '') {
+export function nameCandidates(item, pageTitle = '', selection = '') {
   const title = cleanTitle(pageTitle || item.pageTitle);
   const server = splitName(item.headerName).base;
   const link = splitName(nameFromUrl(item.url)).base;
   const folder = item.kind === 'file' ? '' : dirNameFromUrl(item.url);
   const best = [server, link, folder].find((n) => n && !isGenericName(n)) || '';
   const variants = [
+    ['selection', selection],
     ['server', server],
     ['link', link],
     ['folder', folder],

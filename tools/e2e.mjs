@@ -59,6 +59,8 @@ const routes = {
     200,
     { 'content-type': 'text/html; charset=utf-8' },
     `<!doctype html><title>Лекция 5: Введение</title>
+<h1 id="headline">«Выпуск №7:
+  Итоги года»</h1>
 <video src="/media/d41d8cd98f00b204e9800998ecf8427e" muted></video>
 <script>
 fetch('/dl/get?id=7');
@@ -234,11 +236,23 @@ try {
     await page.send('Page.addScriptToEvaluateOnNewDocument', {
       source: `chrome.tabs.query = async () => [${JSON.stringify(pageTab)}];`,
     });
+    // Text selected on the page becomes the file name.
+    const pageTarget = (await targets()).find((tg) => tg.url.includes('/page.html'));
+    const pageClient = connect(pageTarget.webSocketDebuggerUrl);
+    await pageClient.ready;
+    await evaluate(pageClient, "getSelection().selectAllChildren(document.getElementById('headline'))");
+    pageClient.close();
     for (const scheme of ['light', 'dark']) {
       await page.send('Emulation.setEmulatedMedia', { features: [{ name: 'prefers-color-scheme', value: scheme }] });
       await page.send('Page.navigate', { url: `chrome-extension://${extId}/src/popup/popup.html` });
       await sleep(1500);
       console.log('DOM', await evaluate(page, 'document.getElementById("list").children.length + " items, empty hidden=" + document.getElementById("empty").hidden'));
+      if (scheme === 'light') {
+        const state = await evaluate(page, "({ names: [...document.querySelectorAll('.name')].map((i) => i.value), active: [...document.querySelectorAll('.chip.active')].map((c) => c.textContent) })");
+        const ok = state.names.length > 0 && state.names.every((n) => n === 'Выпуск №7 - Итоги года') && state.active.every((a) => a === 'Выделение');
+        if (!ok) exitCode = 1;
+        console.log(ok ? 'OK  ' : 'FAIL', 'selection used as the name', JSON.stringify(state));
+      }
       const shot = await page.send('Page.captureScreenshot', { format: 'png' });
       writeFileSync(join(work, `popup-${scheme}.png`), Buffer.from(shot.result.data, 'base64'));
     }

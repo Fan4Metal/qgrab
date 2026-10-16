@@ -223,5 +223,8 @@
   },
   "nameCycleHint": {
     "message": "↑/↓ — switch between name variants"
+  },
+  "nameSource_selection": {
+    "message": "Selection"
   }
 }
