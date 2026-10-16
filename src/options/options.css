@@ -1,0 +1,73 @@
+body {
+  font-size: 14px;
+}
+
+main {
+  max-width: 640px;
+  margin: 0 auto;
+  padding: 32px 16px 64px;
+}
+
+.head {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+}
+
+h1 {
+  margin: 0;
+  font-size: 22px;
+}
+
+section {
+  margin-top: 24px;
+  padding-top: 16px;
+  border-top: 1px solid var(--border);
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+}
+
+h2 {
+  margin: 0;
+  font-size: 15px;
+}
+
+.choice,
+.check {
+  display: flex;
+  gap: 10px;
+  align-items: flex-start;
+  cursor: pointer;
+}
+
+.choice input,
+.check input {
+  margin-top: 3px;
+}
+
+.choice span,
+.field {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+}
+
+small {
+  color: var(--muted);
+}
+
+.field input {
+  max-width: 320px;
+}
+
+.saved {
+  position: fixed;
+  bottom: 16px;
+  left: 50%;
+  transform: translateX(-50%);
+  padding: 8px 16px;
+  border-radius: 8px;
+  background: var(--fg);
+  color: var(--bg);
+}

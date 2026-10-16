@@ -1,0 +1,197 @@
+{
+  "extName": {
+    "message": "QGrab"
+  },
+  "extDescription": {
+    "message": "Находит видео и аудио на страницах, включая HLS-потоки, и скачивает их с оригинальным именем файла."
+  },
+  "btnClear": {
+    "message": "Очистить список"
+  },
+  "btnSettings": {
+    "message": "Настройки"
+  },
+  "btnCopy": {
+    "message": "Копировать ссылку"
+  },
+  "btnDownload": {
+    "message": "Скачать"
+  },
+  "popupEmpty": {
+    "message": "На этой странице медиа пока не найдено."
+  },
+  "popupEmptyHint": {
+    "message": "Запустите воспроизведение: потоки определяются, когда плеер их загружает."
+  },
+  "sizeUnknown": {
+    "message": "размер неизвестен"
+  },
+  "live": {
+    "message": "Прямой эфир"
+  },
+  "originalName": {
+    "message": "Оригинальное имя"
+  },
+  "noteHlsError": {
+    "message": "Не удалось прочитать плейлист:"
+  },
+  "noteDrm": {
+    "message": "Поток защищён DRM, скачать его нельзя."
+  },
+  "noteLive": {
+    "message": "Прямой эфир: сохранятся только доступные сейчас сегменты."
+  },
+  "noteAudio": {
+    "message": "Звук идёт отдельной дорожкой и сохранится вторым файлом."
+  },
+  "noteDash": {
+    "message": "DASH-потоки не поддерживаются; ссылку можно передать в yt-dlp или ffmpeg."
+  },
+  "statusCopied": {
+    "message": "Ссылка скопирована"
+  },
+  "statusStarted": {
+    "message": "Загрузка началась"
+  },
+  "statusStreamStarted": {
+    "message": "Загрузка запущена в новой вкладке"
+  },
+  "units": {
+    "message": "Б,КБ,МБ,ГБ,ТБ"
+  },
+  "kbps": {
+    "message": "кбит/с"
+  },
+  "mbps": {
+    "message": "Мбит/с"
+  },
+  "perSecond": {
+    "message": "/с"
+  },
+  "dlLoading": {
+    "message": "Загрузка плейлиста…"
+  },
+  "dlDownloading": {
+    "message": "Загрузка сегментов…"
+  },
+  "dlSaving": {
+    "message": "Сохранение файла…"
+  },
+  "dlDone": {
+    "message": "Готово: файл сохранён."
+  },
+  "dlCancelled": {
+    "message": "Отменено."
+  },
+  "dlError": {
+    "message": "Ошибка"
+  },
+  "dlFailed": {
+    "message": "Не удалось скачать сегментов:"
+  },
+  "dlSaveInterrupted": {
+    "message": "Сохранение прервано."
+  },
+  "dlLiveWarning": {
+    "message": "Прямой эфир: сохранятся только доступные сейчас сегменты."
+  },
+  "errDrm": {
+    "message": "Поток защищён DRM (SAMPLE-AES / Widevine / FairPlay)."
+  },
+  "errEmpty": {
+    "message": "Плейлист не содержит сегментов."
+  },
+  "trackVideo": {
+    "message": "Видео"
+  },
+  "trackAudio": {
+    "message": "Аудио"
+  },
+  "trackAudioSuffix": {
+    "message": "аудио"
+  },
+  "statSegments": {
+    "message": "сегм."
+  },
+  "statLeft": {
+    "message": "осталось"
+  },
+  "btnRetry": {
+    "message": "Повторить"
+  },
+  "btnSkip": {
+    "message": "Сохранить без них"
+  },
+  "btnSaveAgain": {
+    "message": "Сохранить снова"
+  },
+  "btnCancel": {
+    "message": "Отмена"
+  },
+  "btnClose": {
+    "message": "Закрыть"
+  },
+  "optTitle": {
+    "message": "Настройки QGrab"
+  },
+  "optSectionNames": {
+    "message": "Имена файлов"
+  },
+  "optNamingSmart": {
+    "message": "Умный (рекомендуется)"
+  },
+  "optNamingSmartHint": {
+    "message": "Оригинальное имя с сервера или из ссылки; если оно бессмысленное (index, playlist, хэш), берётся заголовок страницы."
+  },
+  "optNamingOriginal": {
+    "message": "Всегда оригинальное"
+  },
+  "optNamingOriginalHint": {
+    "message": "Ровно то имя, которое дают сервер или ссылка, даже если это «index» или «video»."
+  },
+  "optNamingTitle": {
+    "message": "Заголовок страницы"
+  },
+  "optNamingTitleHint": {
+    "message": "Заголовок страницы, на которой найдено видео."
+  },
+  "optNamingTitleOriginal": {
+    "message": "Заголовок страницы + оригинальное имя"
+  },
+  "optNamingTitleOriginalHint": {
+    "message": "Например: «Лекция 5 - lecture5_part2.mp4»."
+  },
+  "optSectionDownloads": {
+    "message": "Загрузки"
+  },
+  "optFolder": {
+    "message": "Подпапка в «Загрузках»"
+  },
+  "optFolderHint": {
+    "message": "Пусто — сохранять прямо в папку загрузок."
+  },
+  "optSaveAs": {
+    "message": "Спрашивать, куда сохранять каждый файл"
+  },
+  "optConcurrency": {
+    "message": "Параллельных загрузок сегментов (HLS)"
+  },
+  "optConcurrencyHint": {
+    "message": "1–16. Больше — быстрее, но некоторые серверы ограничивают соединения."
+  },
+  "optAutoClose": {
+    "message": "Закрывать вкладку загрузки потока по завершении"
+  },
+  "optSectionDetection": {
+    "message": "Обнаружение"
+  },
+  "optMinSize": {
+    "message": "Минимальный размер файла, КБ"
+  },
+  "optMinSizeHint": {
+    "message": "Файлы меньше (превью, звуки интерфейса) не показываются."
+  },
+  "optSaved": {
+    "message": "Сохранено"
+  }
+}

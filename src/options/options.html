@@ -1,0 +1,73 @@
+<!doctype html>
+<html>
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <title>QGrab</title>
+    <link rel="icon" href="../../icons/icon32.png" />
+    <link rel="stylesheet" href="../ui/common.css" />
+    <link rel="stylesheet" href="options.css" />
+    <script type="module" src="options.js"></script>
+  </head>
+  <body>
+    <main>
+      <header class="head">
+        <img src="../../icons/icon48.png" width="36" height="36" alt="" />
+        <h1 data-i18n="optTitle"></h1>
+      </header>
+
+      <section>
+        <h2 data-i18n="optSectionNames"></h2>
+        <label class="choice">
+          <input type="radio" name="naming" value="smart" />
+          <span><b data-i18n="optNamingSmart"></b><small data-i18n="optNamingSmartHint"></small></span>
+        </label>
+        <label class="choice">
+          <input type="radio" name="naming" value="original" />
+          <span><b data-i18n="optNamingOriginal"></b><small data-i18n="optNamingOriginalHint"></small></span>
+        </label>
+        <label class="choice">
+          <input type="radio" name="naming" value="title" />
+          <span><b data-i18n="optNamingTitle"></b><small data-i18n="optNamingTitleHint"></small></span>
+        </label>
+        <label class="choice">
+          <input type="radio" name="naming" value="titleOriginal" />
+          <span><b data-i18n="optNamingTitleOriginal"></b><small data-i18n="optNamingTitleOriginalHint"></small></span>
+        </label>
+      </section>
+
+      <section>
+        <h2 data-i18n="optSectionDownloads"></h2>
+        <label class="field">
+          <span data-i18n="optFolder"></span>
+          <input id="subfolder" type="text" placeholder="Videos" />
+          <small data-i18n="optFolderHint"></small>
+        </label>
+        <label class="check">
+          <input id="saveAs" type="checkbox" />
+          <span data-i18n="optSaveAs"></span>
+        </label>
+        <label class="field">
+          <span data-i18n="optConcurrency"></span>
+          <input id="concurrency" type="number" min="1" max="16" />
+          <small data-i18n="optConcurrencyHint"></small>
+        </label>
+        <label class="check">
+          <input id="autoClose" type="checkbox" />
+          <span data-i18n="optAutoClose"></span>
+        </label>
+      </section>
+
+      <section>
+        <h2 data-i18n="optSectionDetection"></h2>
+        <label class="field">
+          <span data-i18n="optMinSize"></span>
+          <input id="minSizeKB" type="number" min="0" step="100" />
+          <small data-i18n="optMinSizeHint"></small>
+        </label>
+      </section>
+
+      <div id="saved" class="saved" data-i18n="optSaved" hidden></div>
+    </main>
+  </body>
+</html>

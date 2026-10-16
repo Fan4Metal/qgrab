@@ -1,0 +1,197 @@
+{
+  "extName": {
+    "message": "QGrab"
+  },
+  "extDescription": {
+    "message": "Finds video and audio on web pages, including HLS streams, and downloads them under the original file name."
+  },
+  "btnClear": {
+    "message": "Clear list"
+  },
+  "btnSettings": {
+    "message": "Settings"
+  },
+  "btnCopy": {
+    "message": "Copy link"
+  },
+  "btnDownload": {
+    "message": "Download"
+  },
+  "popupEmpty": {
+    "message": "No media found on this page yet."
+  },
+  "popupEmptyHint": {
+    "message": "Start playback: streams are detected as the player loads them."
+  },
+  "sizeUnknown": {
+    "message": "size unknown"
+  },
+  "live": {
+    "message": "Live"
+  },
+  "originalName": {
+    "message": "Original name"
+  },
+  "noteHlsError": {
+    "message": "The playlist could not be read:"
+  },
+  "noteDrm": {
+    "message": "The stream is DRM-protected and cannot be downloaded."
+  },
+  "noteLive": {
+    "message": "Live stream: only the segments available right now will be saved."
+  },
+  "noteAudio": {
+    "message": "Audio is a separate track and will be saved as a second file."
+  },
+  "noteDash": {
+    "message": "DASH streams are not supported; the link can be passed to yt-dlp or ffmpeg."
+  },
+  "statusCopied": {
+    "message": "Link copied"
+  },
+  "statusStarted": {
+    "message": "Download started"
+  },
+  "statusStreamStarted": {
+    "message": "Download started in a new tab"
+  },
+  "units": {
+    "message": "B,KB,MB,GB,TB"
+  },
+  "kbps": {
+    "message": "kbps"
+  },
+  "mbps": {
+    "message": "Mbps"
+  },
+  "perSecond": {
+    "message": "/s"
+  },
+  "dlLoading": {
+    "message": "Loading playlist…"
+  },
+  "dlDownloading": {
+    "message": "Downloading segments…"
+  },
+  "dlSaving": {
+    "message": "Saving file…"
+  },
+  "dlDone": {
+    "message": "Done: the file is saved."
+  },
+  "dlCancelled": {
+    "message": "Cancelled."
+  },
+  "dlError": {
+    "message": "Error"
+  },
+  "dlFailed": {
+    "message": "Segments that could not be downloaded:"
+  },
+  "dlSaveInterrupted": {
+    "message": "Saving was interrupted."
+  },
+  "dlLiveWarning": {
+    "message": "Live stream: only the segments available right now will be saved."
+  },
+  "errDrm": {
+    "message": "The stream is DRM-protected (SAMPLE-AES / Widevine / FairPlay)."
+  },
+  "errEmpty": {
+    "message": "The playlist contains no segments."
+  },
+  "trackVideo": {
+    "message": "Video"
+  },
+  "trackAudio": {
+    "message": "Audio"
+  },
+  "trackAudioSuffix": {
+    "message": "audio"
+  },
+  "statSegments": {
+    "message": "segments"
+  },
+  "statLeft": {
+    "message": "left"
+  },
+  "btnRetry": {
+    "message": "Retry"
+  },
+  "btnSkip": {
+    "message": "Save without them"
+  },
+  "btnSaveAgain": {
+    "message": "Save again"
+  },
+  "btnCancel": {
+    "message": "Cancel"
+  },
+  "btnClose": {
+    "message": "Close"
+  },
+  "optTitle": {
+    "message": "QGrab settings"
+  },
+  "optSectionNames": {
+    "message": "File names"
+  },
+  "optNamingSmart": {
+    "message": "Smart (recommended)"
+  },
+  "optNamingSmartHint": {
+    "message": "The original name from the server or link; when it is meaningless (index, playlist, a hash), the page title is used."
+  },
+  "optNamingOriginal": {
+    "message": "Always original"
+  },
+  "optNamingOriginalHint": {
+    "message": "Exactly the name given by the server or the link, even if it is \"index\" or \"video\"."
+  },
+  "optNamingTitle": {
+    "message": "Page title"
+  },
+  "optNamingTitleHint": {
+    "message": "The title of the page where the video was found."
+  },
+  "optNamingTitleOriginal": {
+    "message": "Page title + original name"
+  },
+  "optNamingTitleOriginalHint": {
+    "message": "For example: \"Lecture 5 - lecture5_part2.mp4\"."
+  },
+  "optSectionDownloads": {
+    "message": "Downloads"
+  },
+  "optFolder": {
+    "message": "Subfolder in Downloads"
+  },
+  "optFolderHint": {
+    "message": "Leave empty to save directly to the Downloads folder."
+  },
+  "optSaveAs": {
+    "message": "Ask where to save each file"
+  },
+  "optConcurrency": {
+    "message": "Parallel segment downloads (HLS)"
+  },
+  "optConcurrencyHint": {
+    "message": "1–16. Higher is faster but some servers limit connections."
+  },
+  "optAutoClose": {
+    "message": "Close the stream download tab when finished"
+  },
+  "optSectionDetection": {
+    "message": "Detection"
+  },
+  "optMinSize": {
+    "message": "Minimum file size, KB"
+  },
+  "optMinSizeHint": {
+    "message": "Smaller files (previews, interface sounds) are not listed."
+  },
+  "optSaved": {
+    "message": "Saved"
+  }
+}

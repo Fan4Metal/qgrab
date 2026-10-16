@@ -1,0 +1,133 @@
+:root {
+  color-scheme: light dark;
+  --bg: #ffffff;
+  --fg: #1d1f24;
+  --muted: #6b7280;
+  --border: #e4e6eb;
+  --surface: #f5f6f8;
+  --surface-hover: #eceef2;
+  --accent: #4f46e5;
+  --accent-hover: #4338ca;
+  --accent-fg: #ffffff;
+  --accent-soft: #eef0ff;
+  --danger: #c62828;
+  --warn: #a15c00;
+  --ok: #1b7f3b;
+  --hls: #0e7490;
+  --dash: #7c3aed;
+  --radius: 8px;
+  font: 13px/1.4 system-ui, 'Segoe UI', Roboto, sans-serif;
+}
+
+@media (prefers-color-scheme: dark) {
+  :root {
+    --bg: #18191d;
+    --fg: #e7e9ee;
+    --muted: #9aa0ab;
+    --border: #2c2f36;
+    --surface: #212328;
+    --surface-hover: #2a2d33;
+    --accent: #8b8ff8;
+    --accent-hover: #a3a6fa;
+    --accent-fg: #14152a;
+    --accent-soft: #272a46;
+    --danger: #f28b82;
+    --warn: #f6c05c;
+    --ok: #6fd08c;
+    --hls: #4cc9e0;
+    --dash: #b794f6;
+  }
+}
+
+* {
+  box-sizing: border-box;
+}
+
+body {
+  margin: 0;
+  background: var(--bg);
+  color: var(--fg);
+}
+
+button,
+input,
+select {
+  font: inherit;
+  color: inherit;
+}
+
+button {
+  cursor: pointer;
+  border: 1px solid var(--border);
+  background: var(--surface);
+  border-radius: 6px;
+  padding: 5px 12px;
+}
+
+button:hover:not(:disabled) {
+  background: var(--surface-hover);
+}
+
+button:disabled {
+  opacity: 0.5;
+  cursor: default;
+}
+
+button.primary {
+  background: var(--accent);
+  border-color: var(--accent);
+  color: var(--accent-fg);
+  font-weight: 600;
+}
+
+button.primary:hover:not(:disabled) {
+  background: var(--accent-hover);
+}
+
+button.icon-btn {
+  display: inline-grid;
+  place-items: center;
+  width: 28px;
+  height: 28px;
+  padding: 0;
+  border-color: transparent;
+  background: transparent;
+  color: var(--muted);
+}
+
+button.icon-btn:hover:not(:disabled) {
+  color: var(--fg);
+}
+
+button.icon-btn svg {
+  width: 16px;
+  height: 16px;
+}
+
+input[type='text'],
+input[type='number'],
+select {
+  border: 1px solid var(--border);
+  background: var(--bg);
+  border-radius: 6px;
+  padding: 4px 8px;
+}
+
+input:focus-visible,
+select:focus-visible,
+button:focus-visible {
+  outline: 2px solid var(--accent);
+  outline-offset: 1px;
+}
+
+.muted {
+  color: var(--muted);
+}
+
+.spacer {
+  flex: 1;
+}
+
+[hidden] {
+  display: none !important;
+}
