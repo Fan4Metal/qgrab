@@ -84,6 +84,13 @@ function variantLabel(v) {
   return [quality, formatBitrate(v.bandwidth)].filter(Boolean).join(' · ') || hostOf(v.url);
 }
 
+// Audio-only streams become .m4a after conversion.
+function streamExt(item) {
+  const variants = item.hls?.variants || [];
+  const audioOnly = variants.length > 0 && variants.every((v) => !v.height && v.codecs && !/avc|hvc|hev|av01|vp0/i.test(v.codecs));
+  return audioOnly ? 'm4a' : 'mp4';
+}
+
 function createCard() {
   const el = template.content.firstElementChild.cloneNode(true);
   applyI18n(el);
@@ -144,7 +151,7 @@ function createCard() {
         warning = t('noteDrm');
         blocked = true;
       } else if (hls.live) warning = t('noteLive');
-      else if (variant?.audioUrl) warning = t('noteAudio');
+      else if (variant?.audioUrl && !settings.convertMp4) warning = t('noteAudio');
     } else {
       warning = t('noteDash');
       blocked = true;
@@ -165,7 +172,7 @@ function createCard() {
 
     kind.className = `kind ${item.kind}`;
     kind.textContent = item.kind === 'file' ? (suggestion.ext || 'FILE').toUpperCase() : item.kind.toUpperCase();
-    ext.textContent = suggestion.ext ? `.${suggestion.ext}` : '';
+    ext.textContent = suggestion.ext ? `.${suggestion.ext}` : item.kind === 'hls' && settings.convertMp4 ? `.${streamExt(item)}` : '';
 
     const variants = item.hls?.variants || [];
     const signature = variants.map((v) => v.url).join('|');

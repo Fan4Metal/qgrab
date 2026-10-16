@@ -19,7 +19,7 @@ for (const radio of document.querySelectorAll('input[name="naming"]')) {
   radio.addEventListener('change', () => save({ naming: radio.value }));
 }
 
-for (const id of ['saveAs', 'autoClose']) {
+for (const id of ['saveAs', 'autoClose', 'convertMp4']) {
   const input = document.getElementById(id);
   input.checked = Boolean(settings[id]);
   input.addEventListener('change', () => save({ [id]: input.checked }));

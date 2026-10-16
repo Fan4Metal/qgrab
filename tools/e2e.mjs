@@ -3,9 +3,9 @@
 // HLS decryption and the injected Referer.
 // usage: node tools/e2e.mjs <path to browser.exe>      (SHOTS=1 also saves popup screenshots)
 import http from 'node:http';
-import { spawn } from 'node:child_process';
+import { execFileSync, spawn, spawnSync } from 'node:child_process';
 import { createCipheriv, randomBytes } from 'node:crypto';
-import { mkdirSync, mkdtempSync, readdirSync, readFileSync, writeFileSync } from 'node:fs';
+import { existsSync, mkdirSync, mkdtempSync, readdirSync, readFileSync, writeFileSync } from 'node:fs';
 import { tmpdir } from 'node:os';
 import { dirname, join } from 'node:path';
 import { fileURLToPath } from 'node:url';
@@ -38,6 +38,20 @@ const encSegments = plainSegments.map((p, i) => {
   return Buffer.concat([c.update(p), c.final()]);
 });
 const refererLog = [];
+
+// Real streams for the MP4 conversion check (needs ffmpeg): fMP4 with a separate audio rendition, and MPEG-TS.
+const real = join(work, 'real');
+const hasFfmpeg = spawnSync('ffmpeg', ['-version']).status === 0;
+if (hasFfmpeg) {
+  const src = ['-f', 'lavfi', '-i', 'testsrc2=size=640x360:rate=25', '-f', 'lavfi', '-i', 'sine=frequency=440:sample_rate=48000', '-t', '12'];
+  const enc = ['-c:v', 'libx264', '-preset', 'veryfast', '-g', '50', '-bf', '2', '-pix_fmt', 'yuv420p', '-c:a', 'aac', '-b:a', '96k'];
+  const hls = ['-f', 'hls', '-hls_time', '4', '-hls_playlist_type', 'vod'];
+  mkdirSync(join(real, 'Sintel_Trailer'), { recursive: true });
+  mkdirSync(join(real, 'Lecture_TS'), { recursive: true });
+  execFileSync('ffmpeg', ['-v', 'error', '-y', ...src, '-map', '0:v', '-map', '1:a', ...enc, ...hls, '-hls_segment_type', 'fmp4', '-master_pl_name', 'master.m3u8', '-var_stream_map', 'v:0,agroup:aud a:0,agroup:aud', '-hls_segment_filename', '%v/seg%d.m4s', '%v/index.m3u8'], { cwd: join(real, 'Sintel_Trailer') });
+  execFileSync('ffmpeg', ['-v', 'error', '-y', ...src, ...enc, ...hls, '-hls_segment_filename', 'seg%d.ts', 'index.m3u8'], { cwd: join(real, 'Lecture_TS') });
+}
+const MIME = { m3u8: 'application/vnd.apple.mpegurl', ts: 'video/mp2t', m4s: 'video/iso.segment', mp4: 'video/mp4', m4a: 'audio/mp4' };
 const big = randomBytes(700 * 1024);
 
 const routes = {
@@ -52,6 +66,7 @@ fetch('/files/My%20Trip%202024.mp4');
 fetch('/hls/Big_Buck_Bunny/master.m3u8').then(r => r.text()).then(() => fetch('/hls/Big_Buck_Bunny/720/index.m3u8'));
 fetch('/chunks/frag-1.mp4'); fetch('/chunks/frag-2.mp4'); fetch('/chunks/frag-3.mp4');
 fetch('/tiny.mp4');
+${hasFfmpeg ? "fetch('/real/Sintel_Trailer/master.m3u8'); fetch('/real/Lecture_TS/index.m3u8');" : ''}
 </script>`,
   ],
   '/media/d41d8cd98f00b204e9800998ecf8427e': () => [200, { 'content-type': 'video/mp4' }, big],
@@ -87,6 +102,21 @@ plainSegments.forEach((_, i) => {
 const server = http.createServer((req, res) => {
   const path = req.url.split('?')[0];
   if (path.includes('seg') || path === '/key.bin') refererLog.push(`${path} <- ${req.headers.referer || '(none)'}`);
+  if (path.startsWith('/real/') || path.startsWith('/downloads/')) {
+    const file = join(path.startsWith('/real/') ? real : downloads, ...decodeURIComponent(path).split('/').slice(2));
+    if (!existsSync(file)) return res.writeHead(404).end();
+    const body = readFileSync(file);
+    const type = MIME[file.split('.').pop()] || 'application/octet-stream';
+    const range = /bytes=(d+)-(d*)/.exec(req.headers.range || '');
+    if (!range) {
+      res.writeHead(200, { 'content-type': type, 'content-length': body.length, 'accept-ranges': 'bytes' });
+      return res.end(body);
+    }
+    const start = Number(range[1]);
+    const end = range[2] ? Math.min(Number(range[2]), body.length - 1) : body.length - 1;
+    res.writeHead(206, { 'content-type': type, 'content-length': end - start + 1, 'content-range': `bytes ${start}-${end}/${body.length}`, 'accept-ranges': 'bytes' });
+    return res.end(body.subarray(start, end + 1));
+  }
   const route = routes[path];
   const [status, headers, body] = route ? route(req) : [404, {}, 'nf'];
   res.writeHead(status, { 'content-length': Buffer.byteLength(body), ...headers });
@@ -222,11 +252,12 @@ try {
     );
     if (r?.error) console.log('download error', i.name, r.error);
   }
-  await sleep(8000);
+  await sleep(hasFfmpeg ? 12000 : 8000);
 
   const files = readdirSync(downloads);
   console.log('downloaded files:', files);
-  const expected = ['Лекция 5 - Введение.mp4', 'Тестовое видео.mp4', 'My Trip 2024.mp4', 'Big_Buck_Bunny.ts'];
+  const converted = hasFfmpeg ? ['Sintel_Trailer.mp4', 'Lecture_TS.mp4'] : [];
+  const expected = ['Лекция 5 - Введение.mp4', 'Тестовое видео.mp4', 'My Trip 2024.mp4', 'Big_Buck_Bunny.ts', ...converted];
   for (const name of expected) {
     const ok = files.includes(name);
     if (!ok) exitCode = 1;
@@ -239,6 +270,29 @@ try {
     const same = readFileSync(join(downloads, 'Big_Buck_Bunny.ts')).equals(Buffer.concat(plainSegments));
     console.log(same ? 'OK   HLS decrypted content matches' : 'FAIL HLS content differs');
     if (!same) exitCode = 1;
+  }
+  for (const name of converted.filter((n) => files.includes(n))) {
+    const info = JSON.parse(execFileSync('ffprobe', ['-v', 'error', '-show_entries', 'stream=codec_name:format=duration', '-of', 'json', join(downloads, name)]));
+    const codecs = info.streams.map((st) => st.codec_name).sort().join('+');
+    const decodeErrors = spawnSync('ffmpeg', ['-v', 'error', '-i', join(downloads, name), '-f', 'null', '-']).stderr.toString().trim();
+    // Playback in the browser itself.
+    const pageTarget = (await targets()).find((tg) => tg.url.includes('/page.html'));
+    await browserWs.send('Target.activateTarget', { targetId: pageTarget.id });
+    const pageClient = connect(pageTarget.webSocketDebuggerUrl);
+    await pageClient.ready;
+    const playback = await evaluate(pageClient, `new Promise((resolve) => {
+      const v = document.createElement('video');
+      v.muted = true;
+      v.onerror = () => resolve({ error: v.error && v.error.message });
+      v.onloadedmetadata = () => { v.currentTime = 6; };
+      v.onseeked = () => resolve({ duration: v.duration, width: v.videoWidth, height: v.videoHeight, audio: v.mozHasAudio ?? (v.webkitAudioDecodedByteCount !== undefined) });
+      v.src = '/downloads/' + encodeURIComponent(${JSON.stringify(name)});
+      setTimeout(() => resolve({ error: 'timeout', readyState: v.readyState, networkState: v.networkState }), 10000);
+    })`);
+    pageClient.close();
+    const ok = codecs === 'aac+h264' && Math.abs(Number(info.format.duration) - 12) < 0.3 && !decodeErrors && !playback.error && Math.abs(playback.duration - 12) < 0.3 && playback.width === 640;
+    if (!ok) exitCode = 1;
+    console.log(ok ? 'OK  ' : 'FAIL', name, '→', codecs, Number(info.format.duration).toFixed(2) + 's', 'browser:', JSON.stringify(playback), decodeErrors ? 'decode errors: ' + decodeErrors : '');
   }
   console.log('referer log:', refererLog);
   client.close();

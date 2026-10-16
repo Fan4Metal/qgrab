@@ -193,5 +193,17 @@
   },
   "optSaved": {
     "message": "Saved"
+  },
+  "dlMuxing": {
+    "message": "Building the MP4 file…"
+  },
+  "warnNoConvert": {
+    "message": "MP4 conversion is not possible, the original format is kept:"
+  },
+  "optConvertMp4": {
+    "message": "Save HLS streams as MP4"
+  },
+  "optConvertMp4Hint": {
+    "message": "Without re-encoding; a separate audio track is merged into the same file. Unsupported codecs keep the original format (.ts)."
   }
 }

@@ -7,6 +7,8 @@ import { parsePlaylist } from '../lib/hls.js';
 import { joinPath, makeFileName } from '../lib/filename.js';
 import { getSettings } from '../lib/settings.js';
 import { clearTabReferer, setTabReferer } from '../lib/referer.js';
+import { createRemuxer } from '../lib/mp4/remux.js';
+import { buildMp4 } from '../lib/mp4/muxer.js';
 
 const RETRIES = 4;
 const RAW_AUDIO_EXT = new Set(['aac', 'mp3', 'ac3', 'ec3']);
@@ -81,11 +83,23 @@ async function main() {
     const tracks = [{ label: t('trackVideo'), playlist: video, suffix: '', audio: false }];
     if (audioUrl) tracks.push({ label: t('trackAudio'), url: audioUrl, suffix: ` (${t('trackAudioSuffix')})`, audio: true });
 
+    // Converted tracks go into one MP4; tracks left in the original container are saved separately.
+    const mp4Tracks = [];
+    const rawFiles = [];
     for (const [index, track] of tracks.entries()) {
       track.playlist ||= await loadPlaylist(track.url);
       const label = tracks.length > 1 ? `${track.label} ${index + 1}/${tracks.length}` : '';
       const result = await downloadTrack(track.playlist, track.audio, label);
-      await save(result.blob, makeFileName(baseName + track.suffix, result.ext), result.ext);
+      if (result.tracks) mp4Tracks.push(...result.tracks);
+      else rawFiles.push({ ...result, suffix: track.suffix });
+    }
+    if (mp4Tracks.length) {
+      setStatus(t('dlMuxing'));
+      const { blob, ext } = buildMp4(mp4Tracks);
+      await save(blob, makeFileName(baseName, ext), ext);
+    }
+    for (const file of rawFiles) {
+      await save(file.blob, makeFileName(baseName + file.suffix, file.ext), file.ext);
     }
 
     finish(t('dlDone'), 'done');
@@ -223,9 +237,44 @@ async function downloadTrack(playlist, audio, label) {
   for (const segment of segments) {
     const key = mapKey(segment.map);
     if (key && !inits.has(key)) {
-      inits.set(key, new Blob([await fetchWithRetry(segment.map.url, segment.map.range, 'buffer')]));
+      const buffer = await fetchWithRetry(segment.map.url, segment.map.range, 'buffer');
+      inits.set(key, { buffer, blob: new Blob([buffer]) });
     }
   }
+
+  // MP4 conversion: undefined = decided by the first segment, null = keep the original container.
+  let remuxer = settings.convertMp4 ? undefined : null;
+  let processed = 0;
+  const keepOriginal = (reason) => {
+    remuxer = null;
+    warn(`${t('warnNoConvert')} ${reason}`);
+  };
+  if (remuxer === undefined && inits.size > 1) keepOriginal('multiple init sections');
+  else if (remuxer === undefined && inits.size) {
+    try {
+      remuxer = createRemuxer(null, [...inits.values()][0].buffer);
+    } catch (e) {
+      keepOriginal(e.message);
+    }
+  }
+
+  // Stores a downloaded segment: remuxed (TS data is not kept twice) or as it is.
+  const store = (i, data) => {
+    if (remuxer !== null) {
+      try {
+        if (remuxer === undefined) remuxer = createRemuxer(data, null);
+        const blob = inits.size ? new Blob([data]) : null; // fMP4 samples are slices of the segment
+        remuxer.process(i, data, blob);
+        results[i] = blob || true;
+        processed++;
+        return;
+      } catch (e) {
+        if (processed > 0) throw e;
+        keepOriginal(e.message);
+      }
+    }
+    results[i] = new Blob([data]);
+  };
 
   const results = new Array(segments.length);
   const stats = { done: 0, bytes: 0, started: performance.now(), lastError: null };
@@ -258,7 +307,7 @@ async function downloadTrack(playlist, audio, label) {
         const i = indexes[next++];
         try {
           const data = await fetchSegment(segments[i]);
-          results[i] = new Blob([data]);
+          store(i, data);
           stats.done++;
           stats.bytes += data.byteLength;
         } catch (e) {
@@ -282,13 +331,15 @@ async function downloadTrack(playlist, audio, label) {
     failed = await run(failed);
   }
 
+  if (remuxer) return { tracks: remuxer.tracks() };
+
   setStatus(t('dlSaving'));
   const parts = [];
   let currentMap = '';
   segments.forEach((segment, i) => {
     if (!results[i]) return;
     const key = mapKey(segment.map);
-    if (key && key !== currentMap) parts.push(inits.get(key));
+    if (key && key !== currentMap) parts.push(inits.get(key).blob);
     currentMap = key;
     parts.push(results[i]);
   });

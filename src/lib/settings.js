@@ -4,6 +4,7 @@ export const DEFAULTS = {
   saveAs: false,
   minSizeKB: 500,
   concurrency: 6,
+  convertMp4: true,
   autoClose: true,
 };
 

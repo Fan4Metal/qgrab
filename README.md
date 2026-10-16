@@ -9,7 +9,7 @@ A Chromium extension (Vivaldi, Chrome, Edge, Brave) that detects video and audio
 - Detection of media files (MP4, WebM, MKV, MOV, MP3, M4A and others) by the `Content-Type` of network responses and by `<video>`/`<audio>` elements.
 - Detection of HLS streams (`.m3u8`), with a choice of quality and an estimated file size.
 - Downloading of HLS streams, including AES-128 encrypted ones, with parallel segment loading, retries and the option to save without failed segments.
-- Separate audio tracks of HLS streams are saved as a second file.
+- Conversion of HLS streams to MP4 without re-encoding: MPEG-TS (H.264 + AAC) and fragmented MP4 become a regular MP4 file with the index at the start, so it opens and seeks in any player. A separate audio track is merged into the same file; audio-only streams are saved as M4A.
 - The `Referer` of the source page is sent automatically, so CDNs that check it do not refuse the download.
 - Hiding of irrelevant requests: stream segments, MSE chunks, small files (previews, interface sounds), YouTube chunks.
 - The file name can be edited in the popup before downloading.
@@ -59,14 +59,14 @@ Regular files are passed to the browser's download manager directly. An HLS stre
 - File naming mode (see above).
 - Subfolder inside the Downloads folder.
 - Asking where to save each file.
+- Saving HLS streams as MP4 (enabled by default).
 - Number of parallel segment downloads for HLS (1–16).
 - Closing the stream tab when the download is finished.
 - Minimum size of listed files (500 KB by default).
 
 ## Limitations
 
-- HLS streams are saved in their native container: MPEG-TS (`.ts`) for classic streams and MP4 for fragmented MP4 streams. A `.ts` file is played by VLC, mpv and most players; lossless conversion to MP4 is performed with `ffmpeg -i video.ts -c copy video.mp4`.
-- When the video and audio of a stream are separate tracks, they are saved as two files; merging is performed with `ffmpeg -i video.mp4 -i "video (audio).m4a" -c copy out.mp4`.
+- Conversion to MP4 covers H.264 and AAC in MPEG-TS, raw AAC segments and any codecs in fragmented MP4 (H.264, HEVC, AV1, AAC, AC-3 and others). For MPEG-TS streams with HEVC, MP3 or AC-3, and when the conversion is disabled, the stream is saved in its original container (`.ts`), and a separate audio track becomes a second file.
 - DASH streams (`.mpd`) are listed, but not downloaded; their link can be copied for yt-dlp or ffmpeg.
 - DRM-protected streams (SAMPLE-AES, Widevine, FairPlay, PlayReady) are not supported.
 - For live streams, only the segments available at the moment of download are saved.
@@ -91,6 +91,7 @@ manifest.json
 src/background.js        service worker: detection, item list, start of downloads
 src/content.js           <video>/<audio> sources of the page
 src/lib/                 shared modules: names, media types, HLS parser, Referer rules, settings
+src/lib/mp4/             HLS → MP4 remuxer: MPEG-TS and fMP4 demuxers, H.264/AAC, MP4 writer
 src/popup/               list of found items
 src/downloader/          HLS stream download page
 src/options/             settings page
@@ -104,8 +105,8 @@ tests/                   unit tests
 
 Node.js 18 or later is required for the tests and tools; the extension itself needs no build step.
 
-- `npm test` runs the unit tests (names, media types, HLS parser).
-- `node tools/e2e.mjs <path to browser executable>` launches the browser with a temporary profile, serves a test page, downloads all detected media and verifies file names, HLS decryption and the `Referer` header. With `SHOTS=1` it also saves popup screenshots.
+- `npm test` runs the unit tests (names, media types, HLS parser, MP4 conversion). The conversion tests generate streams with ffmpeg and check the result with ffprobe; without ffmpeg in `PATH` they are skipped.
+- `node tools/e2e.mjs <path to browser executable>` launches the browser with a temporary profile, serves a test page, downloads all detected media and verifies file names, HLS decryption, the `Referer` header and, when ffmpeg is available, the MP4 conversion including playback in the browser. With `SHOTS=1` it also saves popup screenshots.
 - `npm run icons` regenerates the icons.
 
 For Vivaldi on Windows, the end-to-end test is started as follows:
