@@ -302,6 +302,28 @@ try {
     };
     await shoot(popup, 'popup-focus.png');
 
+    // The size is never cut off, even next to the quality selector and with a long value.
+    const layout = await evaluate(
+      popup,
+      `(async () => {
+        document.querySelector('.others-toggle')?.click();
+        await new Promise((r) => setTimeout(r, 300));
+        const check = () => [...document.querySelectorAll('.item')].map((item) => {
+          const size = item.querySelector('.size');
+          const r = size.getBoundingClientRect();
+          return { text: size.textContent, fits: size.scrollWidth <= size.clientWidth + 1 && r.right <= item.querySelector('.hide').getBoundingClientRect().left && r.width > 0 };
+        });
+        const normal = check();
+        const withQuality = [...document.querySelectorAll('.item')].find((item) => !item.querySelector('.quality').hidden);
+        if (withQuality) withQuality.querySelector('.size').textContent = '~1023,9 МБ';
+        return { normal, stressed: check() };
+      })()`,
+    );
+    const layoutOk = [...layout.normal, ...layout.stressed].every((c) => c.fits && c.text);
+    if (!layoutOk) exitCode = 1;
+    console.log(layoutOk ? 'OK  ' : 'FAIL', 'size always visible', JSON.stringify(layout.normal.map((c) => c.text)));
+    await shoot(popup, 'popup-sizes.png');
+
     await evaluate(popup, `chrome.scripting.executeScript({ target: { tabId: ${pageTab.id}, allFrames: true }, files: ['src/picker.js'] }).then(() => true)`);
     popup.close();
     await browserWs.send('Target.activateTarget', { targetId: pageTarget.id });

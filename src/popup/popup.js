@@ -236,6 +236,7 @@ function createCard() {
   const name = el.querySelector('.name');
   const names = el.querySelector('.names');
   const ext = el.querySelector('.ext');
+  const size = el.querySelector('.size');
   const meta = el.querySelector('.meta');
   const note = el.querySelector('.note');
   const quality = el.querySelector('.quality');
@@ -296,18 +297,20 @@ function createCard() {
 
   // Meta line and notes; depends on the selected quality.
   function describe() {
+    // The size has its own element that never shrinks; duration and host may be cut off.
     const parts = [];
+    let sizeText = '';
     let warning = '';
     let blocked = false;
     if (item.kind === 'file') {
-      parts.push(item.size ? formatBytes(item.size) : t('sizeUnknown'));
+      sizeText = item.size ? formatBytes(item.size) : '';
     } else {
       const info = streamInfo(item);
       const variant = selectedVariant();
       const bandwidth = (variant?.bandwidth || 0) + (info.audioBandwidth || 0);
-      if (info.live) parts.push(t('live'));
-      else if (info.duration) parts.push(formatDuration(info.duration));
-      if (bandwidth && info.duration && !info.live) parts.push(`~${formatBytes((bandwidth * info.duration) / 8)}`);
+      if (info.live) sizeText = t('live');
+      else if (bandwidth && info.duration) sizeText = `~${formatBytes((bandwidth * info.duration) / 8)}`;
+      if (info.duration && !info.live) parts.push(formatDuration(info.duration));
       if (info.error) warning = `${t('noteHlsError')} ${info.error}`;
       else if (info.problem) {
         warning = t(`dashProblem_${info.problem}`);
@@ -318,6 +321,8 @@ function createCard() {
       } else if (info.live) warning = t('noteLive');
       else if ((variant?.audioUrl || info.audioId) && !settings.convertMp4) warning = t('noteAudio');
     }
+    size.textContent = sizeText || '—';
+    size.title = sizeText ? '' : t('sizeUnknown');
     parts.push(hostOf(item.url));
     meta.textContent = parts.filter(Boolean).join(' · ');
     meta.title = item.url;

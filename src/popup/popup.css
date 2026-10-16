@@ -170,8 +170,16 @@ body {
   font-weight: 600;
 }
 
+/* The size is always visible; the quality label and the meta line give way instead. */
+.size {
+  flex: none;
+  font-size: 12px;
+  font-weight: 600;
+  white-space: nowrap;
+}
+
 .meta {
-  flex: 1;
+  flex: 1 1 0;
   min-width: 0;
   font-size: 12px;
   white-space: nowrap;
@@ -199,9 +207,14 @@ body {
   margin-top: 2px;
 }
 
-.quality {
+.actions > button {
   flex: none;
-  max-width: 170px;
+}
+
+.quality {
+  flex: 0 1 auto;
+  min-width: 64px;
+  max-width: 150px;
 }
 
 .empty {
