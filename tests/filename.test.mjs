@@ -5,6 +5,7 @@ import {
   isGenericName,
   joinPath,
   makeFileName,
+  nameCandidates,
   nameFromUrl,
   parseContentDisposition,
   sanitizeName,
@@ -80,4 +81,24 @@ test('suggested names', () => {
   assert.deepEqual(suggestName(hls, 'smart', 'Watch online'), { base: 'Big_Buck_Bunny', ext: '' });
   const hlsHash = { kind: 'hls', url: 'https://cdn.example/hls/abc123def4567890abcd/index.m3u8', originalName: 'index.m3u8' };
   assert.deepEqual(suggestName(hlsHash, 'smart', 'Episode 1: Pilot'), { base: 'Episode 1 - Pilot', ext: '' });
+});
+
+test('name variants for quick switching', () => {
+  const file = {
+    kind: 'file',
+    url: 'https://cdn.example/v/d41d8cd98f00b204e9800998ecf8427e.mp4',
+    headerName: 'Лекция 5.mp4',
+  };
+  assert.deepEqual(nameCandidates(file, 'Курс: введение'), [
+    { source: 'server', base: 'Лекция 5' },
+    { source: 'link', base: 'd41d8cd98f00b204e9800998ecf8427e' },
+    { source: 'title', base: 'Курс - введение' },
+    { source: 'titleOriginal', base: 'Курс - введение - Лекция 5' },
+  ]);
+
+  const hls = { kind: 'hls', url: 'https://cdn.example/movies/Big_Buck_Bunny/master.m3u8', headerName: '' };
+  assert.deepEqual(nameCandidates(hls, 'Big_Buck_Bunny'), [
+    { source: 'link', base: 'master' },
+    { source: 'folder', base: 'Big_Buck_Bunny' },
+  ]);
 });

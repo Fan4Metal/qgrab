@@ -12,7 +12,7 @@ A Chromium extension (Vivaldi, Chrome, Edge, Brave) that detects video and audio
 - Conversion of HLS streams to MP4 without re-encoding: MPEG-TS (H.264 + AAC) and fragmented MP4 become a regular MP4 file with the index at the start, so it opens and seeks in any player. A separate audio track is merged into the same file; audio-only streams are saved as M4A.
 - The `Referer` of the source page is sent automatically, so CDNs that check it do not refuse the download.
 - Hiding of irrelevant requests: stream segments, MSE chunks, small files (previews, interface sounds), YouTube chunks.
-- The file name can be edited in the popup before downloading.
+- The file name can be edited in the popup before downloading. Buttons under the name field switch between the available variants (server, link, folder, page title, title + name); the ↑/↓ keys in the field cycle through them.
 - English and Russian interface; light and dark themes.
 
 ## How the file name is determined

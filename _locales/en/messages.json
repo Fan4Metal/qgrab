@@ -205,5 +205,23 @@
   },
   "optConvertMp4Hint": {
     "message": "Without re-encoding; a separate audio track is merged into the same file. Unsupported codecs keep the original format (.ts)."
+  },
+  "nameSource_server": {
+    "message": "Server"
+  },
+  "nameSource_link": {
+    "message": "Link"
+  },
+  "nameSource_folder": {
+    "message": "Folder"
+  },
+  "nameSource_title": {
+    "message": "Page title"
+  },
+  "nameSource_titleOriginal": {
+    "message": "Title + name"
+  },
+  "nameCycleHint": {
+    "message": "↑/↓ — switch between name variants"
   }
 }

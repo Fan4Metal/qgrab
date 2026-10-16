@@ -205,5 +205,23 @@
   },
   "optConvertMp4Hint": {
     "message": "Без перекодирования; отдельная звуковая дорожка объединяется в тот же файл. При неподдерживаемых кодеках сохраняется исходный формат (.ts)."
+  },
+  "nameSource_server": {
+    "message": "Сервер"
+  },
+  "nameSource_link": {
+    "message": "Ссылка"
+  },
+  "nameSource_folder": {
+    "message": "Папка"
+  },
+  "nameSource_title": {
+    "message": "Заголовок"
+  },
+  "nameSource_titleOriginal": {
+    "message": "Заголовок + имя"
+  },
+  "nameCycleHint": {
+    "message": "↑/↓ — переключение вариантов имени"
   }
 }

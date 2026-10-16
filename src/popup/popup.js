@@ -1,6 +1,6 @@
 import { applyI18n, t } from '../lib/i18n.js';
 import { formatBitrate, formatBytes, formatDuration } from '../lib/format.js';
-import { makeFileName, sanitizeName, suggestName } from '../lib/filename.js';
+import { makeFileName, nameCandidates, sanitizeName, suggestName } from '../lib/filename.js';
 import { getSettings } from '../lib/settings.js';
 
 const list = document.getElementById('list');
@@ -96,6 +96,7 @@ function createCard() {
   applyI18n(el);
   const kind = el.querySelector('.kind');
   const name = el.querySelector('.name');
+  const names = el.querySelector('.names');
   const ext = el.querySelector('.ext');
   const meta = el.querySelector('.meta');
   const note = el.querySelector('.note');
@@ -107,13 +108,35 @@ function createCard() {
   let suggestion = null;
   let nameEdited = false;
   let variantsSignature = '';
+  let candidates = [];
+  let candidatesSignature = '';
   let flashTimer = 0;
+
+  function markActiveName() {
+    for (const chip of names.children) chip.classList.toggle('active', chip.dataset.base === name.value);
+  }
+
+  function pickName(base) {
+    name.value = base;
+    nameEdited = true;
+    markActiveName();
+  }
 
   name.addEventListener('input', () => {
     nameEdited = true;
+    markActiveName();
   });
   name.addEventListener('keydown', (e) => {
     if (e.key === 'Enter' && !download.disabled) download.click();
+    // ↑/↓ cycle through the name variants.
+    if ((e.key === 'ArrowDown' || e.key === 'ArrowUp') && candidates.length > 1) {
+      e.preventDefault();
+      const current = candidates.findIndex((c) => c.base === name.value);
+      const step = e.key === 'ArrowDown' ? 1 : -1;
+      const next = current < 0 ? (step > 0 ? 0 : candidates.length - 1) : (current + step + candidates.length) % candidates.length;
+      pickName(candidates[next].base);
+      name.select();
+    }
   });
   quality.addEventListener('change', () => describe());
 
@@ -168,7 +191,28 @@ function createCard() {
     const pageTitle = item.pageUrl && item.pageUrl === tab?.url ? tab.title : item.pageTitle;
     suggestion = suggestName(item, settings.naming, pageTitle);
     if (!nameEdited) name.value = suggestion.base;
-    name.title = item.originalName ? `${t('originalName')}: ${item.originalName}` : '';
+    candidates = nameCandidates(item, pageTitle);
+    const namesSignature = candidates.map((c) => `${c.source}:${c.base}`).join('|');
+    if (namesSignature !== candidatesSignature) {
+      candidatesSignature = namesSignature;
+      names.replaceChildren(
+        ...candidates.map((c) => {
+          const chip = document.createElement('button');
+          chip.type = 'button';
+          chip.className = 'chip';
+          chip.dataset.base = c.base;
+          chip.textContent = t(`nameSource_${c.source}`);
+          chip.title = c.base;
+          chip.addEventListener('click', () => pickName(c.base));
+          return chip;
+        }),
+      );
+    }
+    names.hidden = candidates.length < 2;
+    markActiveName();
+    name.title = [item.originalName ? `${t('originalName')}: ${item.originalName}` : '', candidates.length > 1 ? t('nameCycleHint') : '']
+      .filter(Boolean)
+      .join('\n');
 
     kind.className = `kind ${item.kind}`;
     kind.textContent = item.kind === 'file' ? (suggestion.ext || 'FILE').toUpperCase() : item.kind.toUpperCase();

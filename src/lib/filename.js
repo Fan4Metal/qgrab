@@ -170,6 +170,35 @@ export function splitName(name) {
 }
 
 /**
+ * Distinct name variants offered for quick switching in the popup.
+ * @returns {{source: 'server'|'link'|'folder'|'title'|'titleOriginal', base: string}[]}
+ */
+export function nameCandidates(item, pageTitle = '') {
+  const title = cleanTitle(pageTitle || item.pageTitle);
+  const server = splitName(item.headerName).base;
+  const link = splitName(nameFromUrl(item.url)).base;
+  const folder = item.kind === 'file' ? '' : dirNameFromUrl(item.url);
+  const best = [server, link, folder].find((n) => n && !isGenericName(n)) || '';
+  const variants = [
+    ['server', server],
+    ['link', link],
+    ['folder', folder],
+    ['title', title],
+    ['titleOriginal', title && best && !title.includes(best) ? `${title} - ${best}` : ''],
+  ];
+  const seen = new Set();
+  const out = [];
+  for (const [source, raw] of variants) {
+    const base = sanitizeName(raw);
+    if (base && !seen.has(base)) {
+      seen.add(base);
+      out.push({ source, base });
+    }
+  }
+  return out;
+}
+
+/**
  * Suggested name for a detected item.
  * naming: 'smart' | 'original' | 'title' | 'titleOriginal'
  * @returns {{base: string, ext: string}} ext is empty for streams (the downloader picks it).
